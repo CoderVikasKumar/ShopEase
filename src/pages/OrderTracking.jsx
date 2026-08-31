@@ -350,7 +350,7 @@ function OrderTracking() {
 
         const response =
           await fetch(
-            `http://localhost:5000/api/orders/${encodeURIComponent(
+            `https://shopease-vnpn.onrender.com/api/orders/${encodeURIComponent(
               orderId
             )}`,
             {
@@ -513,7 +513,7 @@ function OrderTracking() {
 
         const response =
           await fetch(
-            `http://localhost:5000/api/orders/${encodeURIComponent(
+            `https://shopease-vnpn.onrender.com/api/orders/${encodeURIComponent(
               order.orderId
             )}/cancel`,
             {

@@ -55,7 +55,7 @@ function AdminUsers() {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/admin/users",
+          "https://shopease-vnpn.onrender.com/api/admin/users",
           {
             method: "GET",
             headers: {
@@ -241,7 +241,7 @@ function AdminUsers() {
 
       const response =
         await fetch(
-          `http://localhost:5000/api/admin/users/${userId}/role`,
+          `https://shopease-vnpn.onrender.com/api/admin/users/${userId}/role`,
           {
             method: "PUT",
 

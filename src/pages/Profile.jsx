@@ -140,7 +140,7 @@ function Profile() {
       try {
         const response =
           await fetch(
-            "http://localhost:5000/api/auth/me",
+            "https://shopease-vnpn.onrender.com/api/auth/me",
             {
               method: "GET",
 
@@ -258,7 +258,7 @@ function Profile() {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/auth/profile",
+          "https://shopease-vnpn.onrender.com/api/auth/profile",
           {
             method: "PUT",
 

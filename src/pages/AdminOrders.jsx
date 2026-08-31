@@ -65,7 +65,7 @@ function AdminOrders() {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/admin/orders",
+          "https://shopease-vnpn.onrender.com/api/admin/orders",
           {
             method: "GET",
 
@@ -185,7 +185,7 @@ function AdminOrders() {
 
         const response =
           await fetch(
-            `http://localhost:5000/api/admin/orders/${orderId}/status`,
+            `https://shopease-vnpn.onrender.com/api/admin/orders/${orderId}/status`,
             {
               method: "PUT",
 

@@ -30,7 +30,7 @@ function AdminDashboard() {
       try {
         const response =
           await fetch(
-            "http://localhost:5000/api/admin/orders",
+            "https://shopease-vnpn.onrender.com/api/admin/orders",
             {
               method: "GET",
               headers: {
