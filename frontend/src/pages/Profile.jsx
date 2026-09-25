@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -25,9 +26,16 @@ function Profile() {
   const { wishlistCount } =
     useWishlist();
 
-  // =========================
-  // CURRENT USER
-  // =========================
+  // =========================================================
+  // IMAGE INPUT
+  // =========================================================
+
+  const fileInputRef =
+    useRef(null);
+
+  // =========================================================
+  // GET STORED USER
+  // =========================================================
 
   const getStoredUser = () => {
     try {
@@ -40,7 +48,9 @@ function Profile() {
         return null;
       }
 
-      return JSON.parse(savedUser);
+      return JSON.parse(
+        savedUser
+      );
     } catch (error) {
       console.error(
         "Current user load error:",
@@ -51,52 +61,75 @@ function Profile() {
     }
   };
 
-  const [currentUser, setCurrentUser] =
-    useState(getStoredUser);
+  // =========================================================
+  // CURRENT USER
+  // =========================================================
 
-  // =========================
+  const [
+    currentUser,
+    setCurrentUser,
+  ] = useState(
+    getStoredUser
+  );
+
+  // =========================================================
   // PROFILE
-  // =========================
+  // =========================================================
 
-  const [profile, setProfile] =
-    useState(() => {
-      const user =
-        getStoredUser();
+  const [
+    profile,
+    setProfile,
+  ] = useState(() => {
+    const user =
+      getStoredUser();
 
-      return {
-        name:
-          user?.name || "",
+    return {
+      name:
+        user?.name || "",
 
-        email:
-          user?.email || "",
+      email:
+        user?.email || "",
 
-        phone:
-          user?.phone || "",
+      phone:
+        user?.phone || "",
 
-        city:
-          user?.city || "",
-      };
-    });
+      city:
+        user?.city || "",
 
-  const [editing, setEditing] =
-    useState(false);
+      profileImage:
+        user?.profileImage || "",
+    };
+  });
 
-  const [saving, setSaving] =
-    useState(false);
+  // =========================================================
+  // STATES
+  // =========================================================
 
-  const [error, setError] =
-    useState("");
+  const [
+    editing,
+    setEditing,
+  ] = useState(false);
 
-  // =========================
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  // =========================================================
   // ORDER COUNT
-  // =========================
+  // =========================================================
 
   const orderCount =
     getOrders().length;
 
-  // =========================
+  // =========================================================
   // HANDLE INPUT
-  // =========================
+  // =========================================================
 
   const handleChange = (e) => {
     const {
@@ -104,58 +137,369 @@ function Profile() {
       value,
     } = e.target;
 
-    let finalValue = value;
+    let finalValue =
+      value;
 
-    if (name === "phone") {
+    if (
+      name === "phone"
+    ) {
       finalValue =
         value
           .replace(/\D/g, "")
           .slice(0, 10);
     }
 
-    setProfile((prev) => ({
-      ...prev,
-
-      [name]: finalValue,
-    }));
+    setProfile(
+      (prev) => ({
+        ...prev,
+        [name]:
+          finalValue,
+      })
+    );
 
     setError("");
   };
 
-  // =========================
+  // =========================================================
+  // OPEN IMAGE PICKER
+  // =========================================================
+
+  const handleChoosePhoto = () => {
+    if (!editing) {
+      return;
+    }
+
+    fileInputRef.current?.click();
+  };
+
+  // =========================================================
+  // IMAGE CHANGE
+  // =========================================================
+
+  const handleImageChange = (
+    e
+  ) => {
+    const file =
+      e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    // Only images
+    if (
+      !file.type.startsWith(
+        "image/"
+      )
+    ) {
+      setError(
+        "Please select a valid image file."
+      );
+
+      return;
+    }
+
+    // 5MB limit
+    if (
+      file.size >
+      5 * 1024 * 1024
+    ) {
+      setError(
+        "Image size must be less than 5MB."
+      );
+
+      return;
+    }
+
+    const reader =
+      new FileReader();
+
+    reader.onload = () => {
+      const image =
+        reader.result;
+
+      setProfile(
+        (prev) => ({
+          ...prev,
+          profileImage:
+            image,
+        })
+      );
+
+      setError("");
+    };
+
+    reader.onerror = () => {
+      setError(
+        "Unable to load selected image."
+      );
+    };
+
+    reader.readAsDataURL(
+      file
+    );
+
+    // Same file dobara select karne ke liye
+    e.target.value = "";
+  };
+
+  // =========================================================
+  // REMOVE IMAGE
+  // =========================================================
+
+  const handleRemovePhoto = () => {
+    if (!editing) {
+      return;
+    }
+
+    setProfile(
+      (prev) => ({
+        ...prev,
+        profileImage: "",
+      })
+    );
+
+    setError("");
+  };
+
+  // =========================================================
   // LOAD PROFILE FROM BACKEND
-  // =========================
+  // =========================================================
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const loadProfile =
+      async () => {
+        const token =
+          localStorage.getItem(
+            "shopease_token"
+          );
+
+        if (!token) {
+          return;
+        }
+
+        try {
+          const response =
+            await fetch(
+              "http://localhost:5000/api/auth/me",
+              {
+                method:
+                  "GET",
+
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+          const data =
+            await response.json();
+
+          if (
+            response.status ===
+            401
+          ) {
+            localStorage.removeItem(
+              "shopease_token"
+            );
+
+            localStorage.removeItem(
+              "shopease_current_user"
+            );
+
+            navigate(
+              "/login"
+            );
+
+            return;
+          }
+
+          if (
+            !response.ok
+          ) {
+            return;
+          }
+
+          if (data.user) {
+            const user =
+              data.user;
+
+            // Keep locally saved profile image
+            const savedUser =
+              getStoredUser();
+
+            const profileImage =
+              user.profileImage ||
+              savedUser?.profileImage ||
+              "";
+
+            const updatedUser = {
+              ...user,
+              profileImage,
+            };
+
+            setCurrentUser(
+              updatedUser
+            );
+
+            setProfile({
+              name:
+                user.name ||
+                "",
+
+              email:
+                user.email ||
+                "",
+
+              phone:
+                user.phone ||
+                "",
+
+              city:
+                user.city ||
+                "",
+
+              profileImage,
+            });
+
+            localStorage.setItem(
+              "shopease_current_user",
+              JSON.stringify(
+                updatedUser
+              )
+            );
+          }
+        } catch (err) {
+          console.error(
+            "Profile load error:",
+            err
+          );
+        }
+      };
+
+    loadProfile();
+  }, [navigate]);
+
+  // =========================================================
+  // SAVE PROFILE
+  // =========================================================
+
+  const handleSave =
+    async () => {
       const token =
         localStorage.getItem(
           "shopease_token"
         );
 
       if (!token) {
+        navigate(
+          "/login"
+        );
+
+        return;
+      }
+
+      // NAME
+      if (
+        !profile.name.trim()
+      ) {
+        setError(
+          "Name is required."
+        );
+
+        return;
+      }
+
+      // EMAIL
+      if (
+        !profile.email.trim()
+      ) {
+        setError(
+          "Email is required."
+        );
+
+        return;
+      }
+
+      // EMAIL FORMAT
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          profile.email.trim()
+        )
+      ) {
+        setError(
+          "Please enter a valid email address."
+        );
+
+        return;
+      }
+
+      // PHONE
+      if (
+        profile.phone &&
+        profile.phone.length !==
+          10
+      ) {
+        setError(
+          "Please enter a valid 10-digit phone number."
+        );
+
         return;
       }
 
       try {
+        setSaving(true);
+        setError("");
+
+        // =====================================================
+        // UPDATE BACKEND PROFILE
+        // =====================================================
+
         const response =
           await fetch(
-            "http://localhost:5000/api/auth/me",
+            "http://localhost:5000/api/auth/profile",
             {
-              method: "GET",
+              method:
+                "PUT",
 
               headers: {
+                "Content-Type":
+                  "application/json",
+
                 Authorization:
                   `Bearer ${token}`,
               },
+
+              body:
+                JSON.stringify({
+                  name:
+                    profile.name.trim(),
+
+                  email:
+                    profile.email
+                      .trim()
+                      .toLowerCase(),
+
+                  phone:
+                    profile.phone.trim(),
+
+                  city:
+                    profile.city.trim(),
+                }),
             }
           );
 
         const data =
           await response.json();
 
+        // =====================================================
+        // AUTH ERROR
+        // =====================================================
+
         if (
-          response.status === 401
+          response.status ===
+          401
         ) {
           localStorage.removeItem(
             "shopease_token"
@@ -165,218 +509,131 @@ function Profile() {
             "shopease_current_user"
           );
 
-          navigate("/login");
+          navigate(
+            "/login"
+          );
 
           return;
         }
 
-        if (!response.ok) {
-          return;
-        }
+        // =====================================================
+        // API ERROR
+        // =====================================================
 
-        if (data.user) {
-          const user =
-            data.user;
-
-          setCurrentUser(user);
-
-          setProfile({
-            name:
-              user.name || "",
-
-            email:
-              user.email || "",
-
-            phone:
-              user.phone || "",
-
-            city:
-              user.city || "",
-          });
-
-          localStorage.setItem(
-            "shopease_current_user",
-            JSON.stringify(user)
+        if (
+          !response.ok
+        ) {
+          throw new Error(
+            data.message ||
+              "Unable to update profile."
           );
         }
+
+        // =====================================================
+        // UPDATED USER
+        // =====================================================
+
+        const updatedUser = {
+          ...data.user,
+
+          // Preserve selected profile image
+          profileImage:
+            profile.profileImage ||
+            "",
+        };
+
+        setCurrentUser(
+          updatedUser
+        );
+
+        setProfile({
+          name:
+            updatedUser.name ||
+            "",
+
+          email:
+            updatedUser.email ||
+            "",
+
+          phone:
+            updatedUser.phone ||
+            "",
+
+          city:
+            updatedUser.city ||
+            "",
+
+          profileImage:
+            updatedUser.profileImage ||
+            "",
+        });
+
+        // =====================================================
+        // SAVE SESSION LOCALLY
+        // =====================================================
+
+        localStorage.setItem(
+          "shopease_current_user",
+          JSON.stringify(
+            updatedUser
+          )
+        );
+
+        setEditing(false);
+
+        window.alert(
+          "Profile updated successfully!"
+        );
       } catch (err) {
         console.error(
-          "Profile load error:",
+          "Profile save error:",
           err
         );
+
+        setError(
+          err.message ||
+            "Unable to update profile."
+        );
+      } finally {
+        setSaving(false);
       }
     };
 
-    loadProfile();
-  }, [navigate]);
+  // =========================================================
+  // CANCEL EDIT
+  // =========================================================
 
-  // =========================
-  // SAVE PROFILE
-  // =========================
-
-  const handleSave = async () => {
-    const token =
-      localStorage.getItem(
-        "shopease_token"
-      );
-
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    if (!profile.name.trim()) {
-      setError(
-        "Name is required."
-      );
-
-      return;
-    }
-
-    if (!profile.email.trim()) {
-      setError(
-        "Email is required."
-      );
-
-      return;
-    }
-
-    if (
-      profile.phone &&
-      profile.phone.length !== 10
-    ) {
-      setError(
-        "Please enter a valid 10-digit phone number."
-      );
-
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setError("");
-
-      const response =
-        await fetch(
-          "http://localhost:5000/api/auth/profile",
-          {
-            method: "PUT",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${token}`,
-            },
-
-            body: JSON.stringify({
-              name:
-                profile.name.trim(),
-
-              email:
-                profile.email
-                  .trim()
-                  .toLowerCase(),
-
-              phone:
-                profile.phone.trim(),
-
-              city:
-                profile.city.trim(),
-            }),
-          }
-        );
-
-      const data =
-        await response.json();
-
-      // =========================
-      // AUTH ERROR
-      // =========================
-
-      if (
-        response.status === 401
-      ) {
-        localStorage.removeItem(
-          "shopease_token"
-        );
-
-        localStorage.removeItem(
-          "shopease_current_user"
-        );
-
-        navigate("/login");
-
-        return;
-      }
-
-      // =========================
-      // API ERROR
-      // =========================
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Unable to update profile."
-        );
-      }
-
-      // =========================
-      // UPDATE LOCAL SESSION
-      // =========================
-
-      const updatedUser =
-        data.user;
-
-      setCurrentUser(
-        updatedUser
-      );
-
+  const handleCancel =
+    () => {
       setProfile({
         name:
-          updatedUser.name || "",
+          currentUser?.name ||
+          "",
 
         email:
-          updatedUser.email || "",
+          currentUser?.email ||
+          "",
 
         phone:
-          updatedUser.phone || "",
+          currentUser?.phone ||
+          "",
 
         city:
-          updatedUser.city || "",
+          currentUser?.city ||
+          "",
+
+        profileImage:
+          currentUser?.profileImage ||
+          "",
       });
 
-      localStorage.setItem(
-        "shopease_current_user",
-        JSON.stringify(
-          updatedUser
-        )
-      );
-
+      setError("");
       setEditing(false);
+    };
 
-      alert(
-        "Profile updated successfully!"
-      );
-    } catch (err) {
-      console.error(
-        "Profile save error:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Unable to update profile."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // =========================
+  // =========================================================
   // LOGOUT
-  // =========================
+  // =========================================================
 
   const handleLogout = () => {
     const confirmLogout =
@@ -400,12 +657,28 @@ function Profile() {
       "shopease_remember_me"
     );
 
-    navigate("/login");
+    navigate(
+      "/login"
+    );
   };
 
-  // =========================
+  // =========================================================
+  // INITIAL
+  // =========================================================
+
+  const getInitial =
+    () => {
+      return (
+        profile.name ||
+        "U"
+      )
+        .charAt(0)
+        .toUpperCase();
+    };
+
+  // =========================================================
   // NOT LOGGED IN
-  // =========================
+  // =========================================================
 
   if (!currentUser) {
     return (
@@ -458,12 +731,16 @@ function Profile() {
     );
   }
 
+  // =========================================================
+  // PAGE
+  // =========================================================
+
   return (
     <main className="profile-page">
 
-      {/* =========================
+      {/* =====================================================
           HEADER
-      ========================= */}
+      ===================================================== */}
 
       <section className="profile-header">
 
@@ -482,25 +759,115 @@ function Profile() {
 
       </section>
 
-
-      {/* =========================
+      {/* =====================================================
           PROFILE LAYOUT
-      ========================= */}
+      ===================================================== */}
 
       <section className="profile-layout">
 
-        {/* SIDEBAR */}
+        {/* ===================================================
+            SIDEBAR
+        =================================================== */}
 
         <aside className="profile-sidebar">
 
-          <div className="profile-avatar">
+          {/* =================================================
+              PROFILE IMAGE
+          ================================================= */}
 
-            {(
-              profile.name ||
-              "U"
-            )
-              .charAt(0)
-              .toUpperCase()}
+          <div className="profile-avatar-wrapper">
+
+            <div
+              className={`profile-avatar ${
+                profile.profileImage
+                  ? "has-image"
+                  : ""
+              }`}
+              onClick={
+                editing
+                  ? handleChoosePhoto
+                  : undefined
+              }
+              role={
+                editing
+                  ? "button"
+                  : undefined
+              }
+              tabIndex={
+                editing
+                  ? 0
+                  : undefined
+              }
+              onKeyDown={(e) => {
+                if (
+                  editing &&
+                  (e.key ===
+                    "Enter" ||
+                    e.key ===
+                      " ")
+                ) {
+                  handleChoosePhoto();
+                }
+              }}
+            >
+
+              {profile.profileImage ? (
+                <img
+                  src={
+                    profile.profileImage
+                  }
+                  alt={
+                    profile.name ||
+                    "Profile"
+                  }
+                  className="profile-avatar-image"
+                />
+              ) : (
+                getInitial()
+              )}
+
+              {/* CAMERA BUTTON */}
+
+              {editing && (
+                <span className="profile-avatar-camera">
+                  <i className="bi bi-camera-fill"></i>
+                </span>
+              )}
+
+            </div>
+
+            {/* REMOVE PHOTO */}
+
+            {editing &&
+              profile.profileImage && (
+                <button
+                  type="button"
+                  className="profile-remove-photo"
+                  onClick={
+                    handleRemovePhoto
+                  }
+                  disabled={
+                    saving
+                  }
+                >
+                  <i className="bi bi-trash3"></i>
+                  Remove
+                </button>
+              )}
+
+            {/* HIDDEN FILE INPUT */}
+
+            <input
+              ref={
+                fileInputRef
+              }
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={
+                handleImageChange
+              }
+              hidden
+            />
 
           </div>
 
@@ -513,6 +880,15 @@ function Profile() {
             {profile.email}
           </p>
 
+          {editing && (
+            <small className="profile-photo-hint">
+              Click your photo to change it
+            </small>
+          )}
+
+          {/* =================================================
+              MENU
+          ================================================= */}
 
           <nav className="profile-menu">
 
@@ -524,7 +900,6 @@ function Profile() {
 
               Profile
             </Link>
-
 
             <Link
               to="/orders"
@@ -538,7 +913,6 @@ function Profile() {
               </span>
             </Link>
 
-
             <Link
               to="/wishlist"
             >
@@ -550,7 +924,6 @@ function Profile() {
                 {wishlistCount}
               </span>
             </Link>
-
 
             <Link
               to="/cart"
@@ -564,11 +937,12 @@ function Profile() {
               </span>
             </Link>
 
-
             <button
               type="button"
               className="profile-logout-link"
-              onClick={handleLogout}
+              onClick={
+                handleLogout
+              }
             >
               <i className="bi bi-box-arrow-right"></i>
 
@@ -579,10 +953,15 @@ function Profile() {
 
         </aside>
 
-
-        {/* CONTENT */}
+        {/* ===================================================
+            CONTENT
+        =================================================== */}
 
         <section className="profile-content">
+
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
           <div className="profile-content-header">
 
@@ -597,7 +976,6 @@ function Profile() {
               </h2>
 
             </div>
-
 
             {!editing && (
               <button
@@ -616,8 +994,9 @@ function Profile() {
 
           </div>
 
-
-          {/* ERROR */}
+          {/* =================================================
+              ERROR
+          ================================================= */}
 
           {error && (
             <div className="profile-error">
@@ -631,8 +1010,52 @@ function Profile() {
             </div>
           )}
 
+          {/* =================================================
+              PHOTO EDIT CARD
+          ================================================= */}
 
-          {/* FORM */}
+          {editing && (
+            <div className="profile-photo-edit-card">
+
+              <div className="profile-photo-edit-icon">
+                <i className="bi bi-image"></i>
+              </div>
+
+              <div className="profile-photo-edit-text">
+
+                <strong>
+                  Profile Photo
+                </strong>
+
+                <span>
+                  JPG, PNG or WEBP · Maximum 5MB
+                </span>
+
+              </div>
+
+              <button
+                type="button"
+                className="profile-change-photo-btn"
+                onClick={
+                  handleChoosePhoto
+                }
+                disabled={
+                  saving
+                }
+              >
+                <i className="bi bi-upload"></i>
+
+                {profile.profileImage
+                  ? "Change Photo"
+                  : "Upload Photo"}
+              </button>
+
+            </div>
+          )}
+
+          {/* =================================================
+              FORM
+          ================================================= */}
 
           <div className="profile-form">
 
@@ -661,7 +1084,6 @@ function Profile() {
 
             </div>
 
-
             {/* EMAIL */}
 
             <div className="profile-field">
@@ -686,7 +1108,6 @@ function Profile() {
               />
 
             </div>
-
 
             {/* PHONE */}
 
@@ -716,7 +1137,6 @@ function Profile() {
 
             </div>
 
-
             {/* CITY */}
 
             <div className="profile-field">
@@ -745,8 +1165,9 @@ function Profile() {
 
           </div>
 
-
-          {/* ACTIONS */}
+          {/* =================================================
+              ACTIONS
+          ================================================= */}
 
           {editing && (
             <div className="profile-actions">
@@ -754,40 +1175,22 @@ function Profile() {
               <button
                 type="button"
                 className="cancel-profile-btn"
-                disabled={saving}
-                onClick={() => {
-
-                  setProfile({
-                    name:
-                      currentUser.name ||
-                      "",
-
-                    email:
-                      currentUser.email ||
-                      "",
-
-                    phone:
-                      currentUser.phone ||
-                      "",
-
-                    city:
-                      currentUser.city ||
-                      "",
-                  });
-
-                  setError("");
-                  setEditing(false);
-
-                }}
+                disabled={
+                  saving
+                }
+                onClick={
+                  handleCancel
+                }
               >
                 Cancel
               </button>
 
-
               <button
                 type="button"
                 className="save-profile-btn"
-                disabled={saving}
+                disabled={
+                  saving
+                }
                 onClick={
                   handleSave
                 }
@@ -800,8 +1203,9 @@ function Profile() {
             </div>
           )}
 
-
-          {/* ACCOUNT STATS */}
+          {/* =================================================
+              ACCOUNT STATS
+          ================================================= */}
 
           <div className="profile-stats">
 
@@ -823,7 +1227,6 @@ function Profile() {
 
             </div>
 
-
             <div className="profile-stat-card">
 
               <i className="bi bi-heart"></i>
@@ -841,7 +1244,6 @@ function Profile() {
               </div>
 
             </div>
-
 
             <div className="profile-stat-card">
 
@@ -863,10 +1265,13 @@ function Profile() {
 
           </div>
 
-
-          {/* QUICK LINKS */}
+          {/* =================================================
+              QUICK LINKS
+          ================================================= */}
 
           <div className="profile-info-cards">
+
+            {/* ORDERS */}
 
             <div>
 
@@ -894,6 +1299,7 @@ function Profile() {
 
             </div>
 
+            {/* WISHLIST */}
 
             <div>
 
@@ -921,6 +1327,7 @@ function Profile() {
 
             </div>
 
+            {/* CART */}
 
             <div>
 

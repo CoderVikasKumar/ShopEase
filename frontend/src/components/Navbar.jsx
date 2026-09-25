@@ -29,9 +29,25 @@ function Navbar() {
   const { wishlistCount } =
     useWishlist();
 
-  // =========================
+  // =========================================================
+  // SAFE COUNTS
+  // =========================================================
+
+  const safeCartCount =
+    Number(cartCount || 0);
+
+  const safeWishlistCount =
+    Number(wishlistCount || 0);
+
+  const hasCartItems =
+    safeCartCount > 0;
+
+  const hasWishlistItems =
+    safeWishlistCount > 0;
+
+  // =========================================================
   // LOAD + VERIFY USER
-  // =========================
+  // =========================================================
 
   const loadUser = async () => {
     const token =
@@ -73,8 +89,10 @@ function Navbar() {
         id: data.user.id,
         name: data.user.name,
         email: data.user.email,
-        phone: data.user.phone || "",
-        city: data.user.city || "",
+        phone:
+          data.user.phone || "",
+        city:
+          data.user.city || "",
       };
 
       setCurrentUser(user);
@@ -107,17 +125,17 @@ function Navbar() {
     }
   };
 
-  // =========================
+  // =========================================================
   // RUN AUTH CHECK
-  // =========================
+  // =========================================================
 
   useEffect(() => {
     loadUser();
   }, [location.pathname]);
 
-  // =========================
+  // =========================================================
   // STORAGE EVENT
-  // =========================
+  // =========================================================
 
   useEffect(() => {
     const handleStorageChange =
@@ -138,17 +156,17 @@ function Navbar() {
     };
   }, []);
 
-  // =========================
+  // =========================================================
   // CLOSE MENU
-  // =========================
+  // =========================================================
 
   const closeMenu = () => {
     setMenuOpen(false);
   };
 
-  // =========================
+  // =========================================================
   // LOGOUT
-  // =========================
+  // =========================================================
 
   const handleLogout = () => {
     const confirmed =
@@ -160,7 +178,6 @@ function Navbar() {
       return;
     }
 
-    // Remove everything
     localStorage.removeItem(
       "shopease_token"
     );
@@ -173,12 +190,9 @@ function Navbar() {
       "shopease_remember_me"
     );
 
-    // Clear Navbar state immediately
     setCurrentUser(null);
-
     setMenuOpen(false);
 
-    // Go to login
     navigate("/login", {
       replace: true,
     });
@@ -187,14 +201,18 @@ function Navbar() {
   const userName =
     currentUser?.name || "Account";
 
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
     <div className="navbar-wrapper">
 
       <nav className="main-navbar">
 
-        {/* =========================
+        {/* =====================================================
             LOGO
-        ========================= */}
+        ===================================================== */}
 
         <Link
           to="/"
@@ -216,10 +234,9 @@ function Navbar() {
           </div>
         </Link>
 
-
-        {/* =========================
+        {/* =====================================================
             DESKTOP MENU
-        ========================= */}
+        ===================================================== */}
 
         <div className="nav-links">
 
@@ -257,10 +274,9 @@ function Navbar() {
 
         </div>
 
-
-        {/* =========================
+        {/* =====================================================
             RIGHT SIDE
-        ========================= */}
+        ===================================================== */}
 
         <div className="nav-actions">
 
@@ -274,46 +290,49 @@ function Navbar() {
             <i className="bi bi-search"></i>
           </Link>
 
+          {/* =================================================
+              WISHLIST
+              ONLY SHOW WHEN ITEMS EXIST
+          ================================================= */}
 
-          {/* WISHLIST */}
+          {hasWishlistItems && (
+            <Link
+              to="/wishlist"
+              className="nav-icon"
+              aria-label={`Wishlist (${safeWishlistCount})`}
+              title="Wishlist"
+            >
+              <i className="bi bi-heart-fill"></i>
 
-          <Link
-            to="/wishlist"
-            className="nav-icon"
-            aria-label="Wishlist"
-          >
-            <i
-              className={
-                wishlistCount > 0
-                  ? "bi bi-heart-fill"
-                  : "bi bi-heart"
-              }
-            ></i>
+              <span className="wishlist-count">
+                {safeWishlistCount}
+              </span>
+            </Link>
+          )}
 
-            <span className="wishlist-count">
-              {wishlistCount}
-            </span>
-          </Link>
+          {/* =================================================
+              CART
+              ONLY SHOW WHEN ITEMS EXIST
+          ================================================= */}
 
+          {hasCartItems && (
+            <Link
+              to="/cart"
+              className="nav-icon"
+              aria-label={`Cart (${safeCartCount})`}
+              title="Cart"
+            >
+              <i className="bi bi-bag-fill"></i>
 
-          {/* CART */}
+              <span className="cart-count">
+                {safeCartCount}
+              </span>
+            </Link>
+          )}
 
-          <Link
-            to="/cart"
-            className="nav-icon"
-            aria-label="Cart"
-          >
-            <i className="bi bi-bag"></i>
-
-            <span className="cart-count">
-              {cartCount}
-            </span>
-          </Link>
-
-
-          {/* =========================
+          {/* =================================================
               ACCOUNT
-          ========================= */}
+          ================================================= */}
 
           {!authChecking && (
             <>
@@ -338,13 +357,14 @@ function Navbar() {
                     </span>
                   </Link>
 
-
                   {/* LOGOUT */}
 
                   <button
                     type="button"
                     className="nav-logout-btn"
-                    onClick={handleLogout}
+                    onClick={
+                      handleLogout
+                    }
                   >
                     <i className="bi bi-box-arrow-right"></i>
 
@@ -369,7 +389,6 @@ function Navbar() {
                     </span>
                   </Link>
 
-
                   {/* REGISTER */}
 
                   <Link
@@ -384,10 +403,9 @@ function Navbar() {
             </>
           )}
 
-
-          {/* =========================
+          {/* =================================================
               MOBILE MENU BUTTON
-          ========================= */}
+          ================================================= */}
 
           <button
             type="button"
@@ -411,87 +429,120 @@ function Navbar() {
 
         </div>
 
-
-        {/* =========================
+        {/* =====================================================
             MOBILE MENU
-        ========================= */}
+        ===================================================== */}
 
         {menuOpen && (
           <div className="mobile-nav-menu">
+
+            {/* HOME */}
 
             <Link
               to="/"
               onClick={closeMenu}
             >
               <i className="bi bi-house"></i>
-              <span>Home</span>
+
+              <span>
+                Home
+              </span>
             </Link>
 
+            {/* PRODUCTS */}
 
             <Link
               to="/products"
               onClick={closeMenu}
             >
               <i className="bi bi-grid"></i>
-              <span>Products</span>
+
+              <span>
+                Products
+              </span>
             </Link>
 
+            {/* CATEGORIES */}
 
             <Link
               to="/categories"
               onClick={closeMenu}
             >
               <i className="bi bi-collection"></i>
-              <span>Categories</span>
+
+              <span>
+                Categories
+              </span>
             </Link>
 
+            {/* SEARCH */}
 
             <Link
               to="/search"
               onClick={closeMenu}
             >
               <i className="bi bi-search"></i>
-              <span>Search</span>
-            </Link>
-
-
-            <Link
-              to="/wishlist"
-              onClick={closeMenu}
-            >
-              <i
-                className={
-                  wishlistCount > 0
-                    ? "bi bi-heart-fill"
-                    : "bi bi-heart"
-                }
-              ></i>
 
               <span>
-                Wishlist ({wishlistCount})
+                Search
               </span>
             </Link>
 
+            {/* =================================================
+                MOBILE WISHLIST
+                HIDDEN WHEN EMPTY
+            ================================================= */}
 
-            <Link
-              to="/cart"
-              onClick={closeMenu}
-            >
-              <i className="bi bi-bag"></i>
+            {hasWishlistItems && (
+              <Link
+                to="/wishlist"
+                onClick={closeMenu}
+              >
+                <i className="bi bi-heart-fill"></i>
 
-              <span>
-                Cart ({cartCount})
-              </span>
-            </Link>
+                <span>
+                  Wishlist (
+                  {safeWishlistCount}
+                  )
+                </span>
+              </Link>
+            )}
 
+            {/* =================================================
+                MOBILE CART
+                HIDDEN WHEN EMPTY
+            ================================================= */}
+
+            {hasCartItems && (
+              <Link
+                to="/cart"
+                onClick={closeMenu}
+              >
+                <i className="bi bi-bag-fill"></i>
+
+                <span>
+                  Cart (
+                  {safeCartCount}
+                  )
+                </span>
+              </Link>
+            )}
+
+            {/* =================================================
+                ACCOUNT MOBILE
+            ================================================= */}
 
             {!authChecking && (
               <>
                 {currentUser ? (
                   <>
+                    {/* PROFILE */}
+
                     <Link
                       to="/profile"
-                      onClick={closeMenu}
+                      onClick={
+                        closeMenu
+                      }
                     >
                       <i className="bi bi-person-circle"></i>
 
@@ -500,10 +551,13 @@ function Navbar() {
                       </span>
                     </Link>
 
+                    {/* ORDERS */}
 
                     <Link
                       to="/orders"
-                      onClick={closeMenu}
+                      onClick={
+                        closeMenu
+                      }
                     >
                       <i className="bi bi-box-seam"></i>
 
@@ -512,6 +566,7 @@ function Navbar() {
                       </span>
                     </Link>
 
+                    {/* LOGOUT */}
 
                     <button
                       type="button"
@@ -529,9 +584,13 @@ function Navbar() {
                   </>
                 ) : (
                   <>
+                    {/* LOGIN */}
+
                     <Link
                       to="/login"
-                      onClick={closeMenu}
+                      onClick={
+                        closeMenu
+                      }
                     >
                       <i className="bi bi-person"></i>
 
@@ -540,10 +599,13 @@ function Navbar() {
                       </span>
                     </Link>
 
+                    {/* SIGN UP */}
 
                     <Link
                       to="/register"
-                      onClick={closeMenu}
+                      onClick={
+                        closeMenu
+                      }
                     >
                       <i className="bi bi-person-plus"></i>
 

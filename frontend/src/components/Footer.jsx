@@ -26,11 +26,11 @@ function Footer() {
           </p>
 
           <div className="social-links">
-            <a href="#!" aria-label="Facebook">
+            <a href="" aria-label="Facebook">
               <i className="bi bi-facebook"></i>
             </a>
 
-            <a href="#!" aria-label="Instagram">
+            <a href="https://www.instagram.com/_jatav_vikaskum/" aria-label="Instagram">
               <i className="bi bi-instagram"></i>
             </a>
 
