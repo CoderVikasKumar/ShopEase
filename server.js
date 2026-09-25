@@ -2,32 +2,128 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 
-const connectDB = require("./config/db");
-
-const authRoutes = require("./routes/authRoutes");
-const orderRoutes = require("./routes/OrderRoutes");
-
-const adminOrderRoutes = require(
-  "./routes/AdminOrderRoutes"
-);
-
-const adminUserRoutes = require(
-  "./routes/AdminUserRoutes"
-);
-
-const adminProductRoutes = require(
-  "./routes/AdminProductRoutes"
-);
-
-const productRoutes = require(
-  "./routes/ProductRoutes"
-);
-
 // =========================================================
 // LOAD ENVIRONMENT VARIABLES
 // =========================================================
 
 dotenv.config();
+
+// =========================================================
+// DATABASE
+// =========================================================
+
+const connectDB = require("./config/db");
+
+// =========================================================
+// ROUTES
+// =========================================================
+
+const authRoutes = require("./routes/authRoutes");
+const orderRoutes = require("./routes/OrderRoutes");
+
+const adminOrderRoutes = require("./routes/AdminOrderRoutes");
+const adminUserRoutes = require("./routes/AdminUserRoutes");
+const adminProductRoutes = require("./routes/AdminProductRoutes");
+
+const productRoutes = require("./routes/ProductRoutes");
+
+// =========================================================
+// APP
+// =========================================================
+
+const app = express();
+
+// =========================================================
+// PORT
+// =========================================================
+
+const PORT = process.env.PORT || 5000;
+
+// =========================================================
+// CORS
+// =========================================================
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://shopease-1-mp0w.onrender.com",
+    ],
+    credentials: true,
+  })
+);
+
+// =========================================================
+// BODY PARSER
+// =========================================================
+
+app.use(express.json());
+
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
+
+// =========================================================
+// DATABASE CONNECTION
+// =========================================================
+
+connectDB();
+
+// =========================================================
+// PUBLIC AUTH ROUTES
+// =========================================================
+
+app.use(
+  "/api/auth",
+  authRoutes
+);
+
+// =========================================================
+// PUBLIC ORDER ROUTES
+// =========================================================
+
+app.use(
+  "/api/orders",
+  orderRoutes
+);
+
+// =========================================================
+// PUBLIC PRODUCT ROUTES
+// =========================================================
+
+app.use(
+  "/api/products",
+  productRoutes
+);
+
+// =========================================================
+// ADMIN ORDER ROUTES
+// =========================================================
+
+app.use(
+  "/api/admin",
+  adminOrderRoutes
+);
+
+// =========================================================
+// ADMIN USER ROUTES
+// =========================================================
+
+app.use(
+  "/api/admin",
+  adminUserRoutes
+);
+
+// =========================================================
+// ADMIN PRODUCT ROUTES
+// =========================================================
+
+app.use(
+  "/api/admin",
+  adminProductRoutes
+);
 
 // =========================================================
 // RAZORPAY ENV CHECK
@@ -49,117 +145,24 @@ console.log(
 
 console.log(
   "Razorpay Currency:",
-  process.env.RAZORPAY_CURRENCY ||
-    "INR"
+  process.env.RAZORPAY_CURRENCY || "INR"
 );
 
-const app = express();
-
-// =========================
-// CONFIG
-// =========================
-
-const PORT =
-  process.env.PORT || 5000;
-
-// =========================
-// MIDDLEWARE
-// =========================
-
-app.use(
-  cors({
-    origin:
-      "http://localhost:5173",
-    credentials: true,
-  })
-);
-
-app.use(express.json());
-
-app.use(
-  express.urlencoded({
-    extended: true,
-  })
-);
-
-// =========================
-// DATABASE
-// =========================
-
-connectDB();
-
-// =========================
-// PUBLIC AUTH ROUTES
-// =========================
-
-app.use(
-  "/api/auth",
-  authRoutes
-);
-
-// =========================
-// PUBLIC ORDER ROUTES
-// =========================
-
-app.use(
-  "/api/orders",
-  orderRoutes
-);
-
-// =========================
-// PUBLIC PRODUCT ROUTES
-// =========================
-
-app.use(
-  "/api/products",
-  productRoutes
-);
-
-// =========================
-// ADMIN ORDER ROUTES
-// =========================
-
-app.use(
-  "/api/admin",
-  adminOrderRoutes
-);
-
-// =========================
-// ADMIN USER ROUTES
-// =========================
-
-app.use(
-  "/api/admin",
-  adminUserRoutes
-);
-
-// =========================
-// ADMIN PRODUCT ROUTES
-// =========================
-
-app.use(
-  "/api/admin",
-  adminProductRoutes
-);
-
-// =========================
-// TEST ROUTE
-// =========================
+// =========================================================
+// ROOT TEST ROUTE
+// =========================================================
 
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-
-    message:
-      "ShopEase Backend API is running 🚀",
-
+    message: "ShopEase Backend API is running 🚀",
     port: PORT,
   });
 });
 
-// =========================
+// =========================================================
 // API HEALTH
-// =========================
+// =========================================================
 
 app.get(
   "/api/health",
@@ -185,9 +188,9 @@ app.get(
   }
 );
 
-// =========================
+// =========================================================
 // AUTH TEST
-// =========================
+// =========================================================
 
 app.get(
   "/api/auth",
@@ -201,9 +204,9 @@ app.get(
   }
 );
 
-// =========================
+// =========================================================
 // ORDER API TEST
-// =========================
+// =========================================================
 
 app.get(
   "/api/orders",
@@ -217,9 +220,9 @@ app.get(
   }
 );
 
-// =========================
+// =========================================================
 // PUBLIC PRODUCT API TEST
-// =========================
+// =========================================================
 
 app.get(
   "/api/products/test",
@@ -233,9 +236,9 @@ app.get(
   }
 );
 
-// =========================
+// =========================================================
 // ADMIN API TEST
-// =========================
+// =========================================================
 
 app.get(
   "/api/admin",
@@ -249,9 +252,9 @@ app.get(
   }
 );
 
-// =========================
+// =========================================================
 // ADMIN PRODUCT API TEST
-// =========================
+// =========================================================
 
 app.get(
   "/api/admin/products/test",
@@ -265,9 +268,9 @@ app.get(
   }
 );
 
-// =========================
+// =========================================================
 // 404 HANDLER
-// =========================
+// =========================================================
 
 app.use((req, res) => {
   res.status(404).json({
@@ -278,9 +281,9 @@ app.use((req, res) => {
   });
 });
 
-// =========================
+// =========================================================
 // ERROR HANDLER
-// =========================
+// =========================================================
 
 app.use(
   (err, req, res, next) => {
@@ -298,9 +301,9 @@ app.use(
   }
 );
 
-// =========================
+// =========================================================
 // START SERVER
-// =========================
+// =========================================================
 
 app.listen(
   PORT,
@@ -320,35 +323,35 @@ app.listen(
     );
 
     console.log(
-      `Server: http://localhost:${PORT}`
+      `Server running on port: ${PORT}`
     );
 
     console.log(
-      `Health: http://localhost:${PORT}/api/health`
+      `Health: /api/health`
     );
 
     console.log(
-      `Auth: http://localhost:${PORT}/api/auth`
+      `Auth: /api/auth`
     );
 
     console.log(
-      `Orders: http://localhost:${PORT}/api/orders`
+      `Orders: /api/orders`
     );
 
     console.log(
-      `Products: http://localhost:${PORT}/api/products`
+      `Products: /api/products`
     );
 
     console.log(
-      `Admin: http://localhost:${PORT}/api/admin`
+      `Admin: /api/admin`
     );
 
     console.log(
-      `Admin Users: http://localhost:${PORT}/api/admin/users`
+      `Admin Users: /api/admin/users`
     );
 
     console.log(
-      `Admin Products: http://localhost:${PORT}/api/admin/products`
+      `Admin Products: /api/admin/products`
     );
 
     console.log(
