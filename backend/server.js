@@ -23,6 +23,11 @@ const productRoutes = require(
   "./routes/ProductRoutes"
 );
 
+const adminDashboardRoutes =
+  require(
+    "./routes/AdminDashboardRoutes"
+  );
+
 // =========================================================
 // LOAD ENVIRONMENT VARIABLES
 // =========================================================
@@ -140,6 +145,11 @@ app.use(
 app.use(
   "/api/admin",
   adminProductRoutes
+);
+
+app.use(
+  "/api/admin/dashboard",
+  adminDashboardRoutes
 );
 
 // =========================

@@ -3,6 +3,7 @@ const express = require("express");
 const {
   getAllUsers,
   updateUserRole,
+  resetUserPassword,
 } = require(
   "../controllers/AdminUserController"
 );
@@ -15,12 +16,12 @@ const adminMiddleware = require(
   "../middleware/adminMiddleware"
 );
 
-const router = express.Router();
+const router =
+  express.Router();
 
-
-// =========================
+// =========================================================
 // GET ALL USERS
-// =========================
+// =========================================================
 
 router.get(
   "/users",
@@ -29,10 +30,9 @@ router.get(
   getAllUsers
 );
 
-
-// =========================
+// =========================================================
 // UPDATE USER ROLE
-// =========================
+// =========================================================
 
 router.put(
   "/users/:userId/role",
@@ -41,5 +41,15 @@ router.put(
   updateUserRole
 );
 
+// =========================================================
+// RESET USER PASSWORD
+// =========================================================
+
+router.put(
+  "/users/:userId/password",
+  protect,
+  adminMiddleware,
+  resetUserPassword
+);
 
 module.exports = router;

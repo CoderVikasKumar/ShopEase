@@ -1,24 +1,309 @@
 const Order = require("../models/Order");
 
-// =========================
-// GET ALL ORDERS
-// =========================
+// =========================================================
+// TRACKING STEPS
+// =========================================================
 
-const getAllOrders = async (req, res) => {
+const trackingSteps = [
+  "Order Placed",
+  "Order Confirmed",
+  "Order Packed",
+  "Shipped",
+  "In Transit",
+  "Out for Delivery",
+  "Delivered",
+];
+
+// =========================================================
+// STATUS → TRACKING TITLE
+// =========================================================
+
+const statusToTrackingTitle = {
+  Processing: "Order Placed",
+  Packed: "Order Packed",
+  Shipped: "Shipped",
+  "In Transit": "In Transit",
+  "Out for Delivery":
+    "Out for Delivery",
+  Delivered: "Delivered",
+  Cancelled:
+    "Order Cancelled",
+};
+
+// =========================================================
+// UPDATE TRACKING HISTORY
+// =========================================================
+
+const updateTrackingHistory = (
+  order,
+  status
+) => {
+  if (
+    !Array.isArray(
+      order.trackingHistory
+    )
+  ) {
+    order.trackingHistory = [];
+  }
+
+  const currentTitle =
+    statusToTrackingTitle[status];
+
+  // -------------------------------------------------------
+  // CANCELLED
+  // -------------------------------------------------------
+
+  if (
+    status === "Cancelled"
+  ) {
+    const alreadyCancelled =
+      order.trackingHistory.some(
+        (item) =>
+          item.title ===
+          "Order Cancelled"
+      );
+
+    if (!alreadyCancelled) {
+      const now = new Date();
+
+      order.trackingHistory.push({
+        title:
+          "Order Cancelled",
+
+        location:
+          "ShopEase",
+
+        date:
+          now.toLocaleDateString(
+            "en-GB",
+            {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }
+          ),
+
+        time:
+          now.toLocaleTimeString(
+            "en-US",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            }
+          ),
+
+        completed: true,
+      });
+    }
+
+    return;
+  }
+
+  // -------------------------------------------------------
+  // NORMAL TRACKING
+  // -------------------------------------------------------
+
+  const currentIndex =
+    trackingSteps.indexOf(
+      currentTitle
+    );
+
+  order.trackingHistory =
+    order.trackingHistory.map(
+      (item) => {
+        const stepIndex =
+          trackingSteps.indexOf(
+            item.title
+          );
+
+        if (
+          stepIndex !== -1 &&
+          currentIndex !== -1
+        ) {
+          item.completed =
+            stepIndex <=
+            currentIndex;
+        }
+
+        return item;
+      }
+    );
+
+  // -------------------------------------------------------
+  // ADD DATE/TIME TO CURRENT STEP
+  // -------------------------------------------------------
+
+  const now = new Date();
+
+  const date =
+    now.toLocaleDateString(
+      "en-GB",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+
+  const time =
+    now.toLocaleTimeString(
+      "en-US",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+
+  const currentItem =
+    order.trackingHistory.find(
+      (item) =>
+        item.title ===
+        currentTitle
+    );
+
+  if (currentItem) {
+    currentItem.date = date;
+    currentItem.time = time;
+    currentItem.completed = true;
+
+    // -----------------------------------------------------
+    // CURRENT LOCATION
+    // -----------------------------------------------------
+
+    if (
+      status === "Processing"
+    ) {
+      currentItem.location =
+        "ShopEase Warehouse";
+    }
+
+    if (
+      status === "Packed"
+    ) {
+      currentItem.location =
+        "Delhi Warehouse";
+    }
+
+    if (
+      status === "Shipped"
+    ) {
+      currentItem.location =
+        "Delhi";
+    }
+
+    if (
+      status === "In Transit"
+    ) {
+      currentItem.location =
+        "Lucknow Hub";
+    }
+
+    if (
+      status ===
+      "Out for Delivery"
+    ) {
+      currentItem.location =
+        order.customer?.city ||
+        "Customer Location";
+    }
+
+    if (
+      status === "Delivered"
+    ) {
+      currentItem.location =
+        order.customer?.address ||
+        "Customer Address";
+    }
+  }
+};
+
+// =========================================================
+// UPDATE LOCATION
+// =========================================================
+
+const updateOrderLocation = (
+  order,
+  status
+) => {
+  if (
+    status === "Processing"
+  ) {
+    order.currentLocation =
+      "ShopEase Warehouse";
+  }
+
+  if (
+    status === "Packed"
+  ) {
+    order.currentLocation =
+      "Delhi Warehouse";
+  }
+
+  if (
+    status === "Shipped"
+  ) {
+    order.currentLocation =
+      "Delhi";
+  }
+
+  if (
+    status === "In Transit"
+  ) {
+    order.currentLocation =
+      "Lucknow Hub";
+  }
+
+  if (
+    status ===
+    "Out for Delivery"
+  ) {
+    order.currentLocation =
+      order.customer?.city ||
+      "Customer Location";
+  }
+
+  if (
+    status === "Delivered"
+  ) {
+    order.currentLocation =
+      order.customer?.address ||
+      "Customer Address";
+  }
+
+  if (
+    status === "Cancelled"
+  ) {
+    order.currentLocation =
+      "Order Cancelled";
+  }
+};
+
+// =========================================================
+// GET ALL ORDERS
+// =========================================================
+
+const getAllOrders = async (
+  req,
+  res
+) => {
   try {
-    const orders = await Order.find()
-      .populate(
-        "user",
-        "name email phone city"
-      )
-      .sort({
-        createdAt: -1,
-      })
-      .lean();
+    const orders =
+      await Order.find()
+        .populate(
+          "user",
+          "name email phone city"
+        )
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
 
     return res.status(200).json({
       success: true,
-      count: orders.length,
+
+      count:
+        orders.length,
+
       orders,
     });
   } catch (error) {
@@ -29,183 +314,163 @@ const getAllOrders = async (req, res) => {
 
     return res.status(500).json({
       success: false,
+
       message:
         "Unable to load all orders.",
     });
   }
 };
 
-// =========================
+// =========================================================
 // UPDATE ORDER STATUS
-// =========================
+// =========================================================
 
-const updateOrderStatus = async (
-  req,
-  res
-) => {
-  try {
-    const { status } = req.body;
+const updateOrderStatus =
+  async (
+    req,
+    res
+  ) => {
+    try {
+      const orderId =
+        String(
+          req.params.orderId ||
+            ""
+        ).trim();
 
-    const allowedStatuses = [
-      "Processing",
-      "Packed",
-      "Shipped",
-      "In Transit",
-      "Out for Delivery",
-      "Delivered",
-      "Cancelled",
-    ];
+      const {
+        status,
+      } = req.body;
 
-    if (
-      !allowedStatuses.includes(status)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid order status.",
-      });
-    }
+      // =====================================================
+      // VALIDATION
+      // =====================================================
 
-    const order =
-      await Order.findOne({
-        orderId:
-          req.params.orderId,
-      });
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Order not found.",
-      });
-    }
-
-    order.orderStatus = status;
-
-    // =========================
-    // TRACKING STEP MAPPING
-    // =========================
-
-    const statusToTitle = {
-      Processing: "Order Placed",
-      Packed: "Order Packed",
-      Shipped: "Shipped",
-      "In Transit": "In Transit",
-      "Out for Delivery":
+      const allowedStatuses = [
+        "Processing",
+        "Packed",
+        "Shipped",
+        "In Transit",
         "Out for Delivery",
-      Delivered: "Delivered",
-      Cancelled: "Cancelled",
-    };
+        "Delivered",
+        "Cancelled",
+      ];
 
-    const currentTitle =
-      statusToTitle[status];
+      if (
+        !allowedStatuses.includes(
+          status
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
 
-    // Mark matching tracking step
-    if (
-      Array.isArray(
-        order.trackingHistory
-      )
-    ) {
-      order.trackingHistory =
-        order.trackingHistory.map(
-          (item) => {
-            const stepIndex =
-              [
-                "Order Placed",
-                "Order Confirmed",
-                "Order Packed",
-                "Shipped",
-                "In Transit",
-                "Out for Delivery",
-                "Delivered",
-              ].indexOf(
-                item.title
-              );
+          message:
+            "Invalid order status.",
+        });
+      }
 
-            const currentIndex =
-              [
-                "Order Placed",
-                "Order Confirmed",
-                "Order Packed",
-                "Shipped",
-                "In Transit",
-                "Out for Delivery",
-                "Delivered",
-              ].indexOf(
-                currentTitle
-              );
+      if (!orderId) {
+        return res.status(400).json({
+          success: false,
 
-            if (
-              stepIndex !== -1 &&
-              currentIndex !== -1
-            ) {
-              item.completed =
-                stepIndex <=
-                currentIndex;
-            }
+          message:
+            "Order ID is required.",
+        });
+      }
 
-            return item;
-          }
-        );
+      // =====================================================
+      // FIND ORDER
+      // =====================================================
+
+      const order =
+        await Order.findOne({
+          orderId,
+        });
+
+      if (!order) {
+        return res.status(404).json({
+          success: false,
+
+          message:
+            "Order not found.",
+        });
+      }
+
+      // =====================================================
+      // ALREADY SAME STATUS
+      // =====================================================
+
+      if (
+        order.orderStatus ===
+        status
+      ) {
+        return res.status(200).json({
+          success: true,
+
+          message:
+            "Order is already in this status.",
+
+          order,
+        });
+      }
+
+      // =====================================================
+      // UPDATE STATUS
+      // =====================================================
+
+      order.orderStatus =
+        status;
+
+      // =====================================================
+      // UPDATE TRACKING
+      // =====================================================
+
+      updateTrackingHistory(
+        order,
+        status
+      );
+
+      // =====================================================
+      // UPDATE LOCATION
+      // =====================================================
+
+      updateOrderLocation(
+        order,
+        status
+      );
+
+      // =====================================================
+      // SAVE
+      // =====================================================
+
+      await order.save();
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "Order status updated successfully.",
+
+        order,
+      });
+    } catch (error) {
+      console.error(
+        "Update order status error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          error?.message ||
+          "Unable to update order status.",
+      });
     }
+  };
 
-    // =========================
-    // UPDATE LOCATION
-    // =========================
-
-    if (status === "Processing") {
-      order.currentLocation =
-        "ShopEase Warehouse";
-    }
-
-    if (status === "Packed") {
-      order.currentLocation =
-        "Delhi Warehouse";
-    }
-
-    if (status === "Shipped") {
-      order.currentLocation =
-        "Delhi";
-    }
-
-    if (status === "In Transit") {
-      order.currentLocation =
-        "Lucknow Hub";
-    }
-
-    if (
-      status === "Out for Delivery"
-    ) {
-      order.currentLocation =
-        order.customer.city;
-    }
-
-    if (status === "Delivered") {
-      order.currentLocation =
-        order.customer.address;
-    }
-
-    await order.save();
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Order status updated successfully.",
-      order,
-    });
-  } catch (error) {
-    console.error(
-      "Update order status error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Unable to update order status.",
-    });
-  }
-};
+// =========================================================
+// EXPORTS
+// =========================================================
 
 module.exports = {
   getAllOrders,
