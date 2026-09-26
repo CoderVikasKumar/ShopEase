@@ -140,7 +140,7 @@ function Profile() {
       try {
         const response =
           await fetch(
-            "https:///api/auth/me",
+            "https://shopease-backend-txtm.onrender.com/api/auth/me",
             {
               method: "GET",
 
