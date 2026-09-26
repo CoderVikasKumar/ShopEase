@@ -81,7 +81,7 @@ function Login() {
       // =========================
 
       const response = await fetch(
-        "https:///api/auth/login",
+        "https://shopease-backend-txtm.onrender.com/api/auth/login",
         {
           method: "POST",
 
