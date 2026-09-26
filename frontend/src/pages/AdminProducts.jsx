@@ -102,7 +102,7 @@ function AdminProducts() {
       setError("");
 
       const response = await fetch(
-        "http://localhost:5000/api/admin/products",
+        "https://shopease-backend-txtm.onrender.com/api/admin/products",
         {
           method: "GET",
 
@@ -536,8 +536,8 @@ function AdminProducts() {
           );
 
         const url = isEditing
-          ? `http://localhost:5000/api/admin/products/${editingProduct._id}`
-          : "http://localhost:5000/api/admin/products";
+          ? `https://shopease-backend-txtm.onrender.com/api/admin/products/${editingProduct._id}`
+          : "https://shopease-backend-txtm.onrender.com/api/admin/products";
 
         const method = isEditing
           ? "PUT"
@@ -684,7 +684,7 @@ function AdminProducts() {
 
       const response =
         await fetch(
-          `http://localhost:5000/api/admin/products/${productId}`,
+          `https://shopease-backend-txtm.onrender.com/api/admin/products/${productId}`,
           {
             method:
               "DELETE",

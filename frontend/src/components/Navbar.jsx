@@ -64,7 +64,7 @@ function Navbar() {
     try {
       const response =
         await fetch(
-          "http://localhost:5000/api/auth/me",
+          "https://shopease-backend-txtm.onrender.com/api/auth/me",
           {
             method: "GET",
 

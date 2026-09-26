@@ -147,7 +147,7 @@ function Orders() {
 
         const response =
           await fetch(
-            "http://localhost:5000/api/orders/my-orders",
+            "https://shopease-backend-txtm.onrender.com/api/orders/my-orders",
             {
               method: "GET",
 
@@ -298,7 +298,7 @@ function Orders() {
 
         const response =
           await fetch(
-            `http://localhost:5000/api/orders/${encodeURIComponent(
+            `https://shopease-backend-txtm.onrender.com/api/orders/${encodeURIComponent(
               order.orderId
             )}/cancel`,
             {

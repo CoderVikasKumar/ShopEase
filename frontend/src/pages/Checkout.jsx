@@ -7,7 +7,7 @@ import {
 import { useCart } from "../context/CartContext";
 
 const API_BASE_URL =
-  "http://localhost:5000";
+  "https://shopease-backend-txtm.onrender.com";
 
 const RAZORPAY_SCRIPT_URL =
   "https://checkout.razorpay.com/v1/checkout.js";

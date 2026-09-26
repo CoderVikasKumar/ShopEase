@@ -44,7 +44,7 @@ function AdminDashboard() {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/admin/dashboard",
+          "https://shopease-backend-txtm.onrender.com/api/admin/dashboard",
           {
             method: "GET",
             headers: {

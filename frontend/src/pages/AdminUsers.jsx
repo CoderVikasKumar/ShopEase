@@ -73,7 +73,7 @@ function AdminUsers() {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/admin/users",
+          "https://shopease-backend-txtm.onrender.com/api/admin/users",
           {
             method: "GET",
             headers: {
@@ -316,7 +316,7 @@ function AdminUsers() {
 
       const response =
         await fetch(
-          `http://localhost:5000/api/admin/users/${encodeURIComponent(
+          `https://shopease-backend-txtm.onrender.com/api/admin/users/${encodeURIComponent(
             resetUser._id
           )}/password`,
           {
@@ -442,7 +442,7 @@ function AdminUsers() {
 
       const response =
         await fetch(
-          `http://localhost:5000/api/admin/users/${encodeURIComponent(
+          `https://shopease-backend-txtm.onrender.com/api/admin/users/${encodeURIComponent(
             userId
           )}/role`,
           {
