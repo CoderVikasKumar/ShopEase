@@ -29,7 +29,7 @@ function ProtectedRoute({ children }) {
 
       try {
         const response = await fetch(
-          "https://shopease-vnpn.onrender.com/api/auth/me",
+          "https:///api/auth/me",
           {
             method: "GET",
             headers: {

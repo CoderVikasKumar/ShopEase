@@ -81,7 +81,7 @@ function Login() {
       // =========================
 
       const response = await fetch(
-        "https://shopease-vnpn.onrender.com/api/auth/login",
+        "https:///api/auth/login",
         {
           method: "POST",
 

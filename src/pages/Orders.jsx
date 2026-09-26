@@ -147,7 +147,7 @@ function Orders() {
 
         const response =
           await fetch(
-            "https://shopease-vnpn.onrender.com/api/orders/my-orders",
+            "https:///api/orders/my-orders",
             {
               method: "GET",
 
@@ -298,7 +298,7 @@ function Orders() {
 
         const response =
           await fetch(
-            `https://shopease-vnpn.onrender.com/api/orders/${encodeURIComponent(
+            `https:///api/orders/${encodeURIComponent(
               order.orderId
             )}/cancel`,
             {

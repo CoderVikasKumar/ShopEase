@@ -33,7 +33,7 @@ function DealOfDay() {
 
         const response =
           await fetch(
-            "https://shopease-vnpn.onrender.com/api/products"
+            "https:///api/products"
           );
 
         const data =

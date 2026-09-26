@@ -102,7 +102,7 @@ function AdminProducts() {
       setError("");
 
       const response = await fetch(
-        "https://shopease-vnpn.onrender.com/api/admin/products",
+        "https:///api/admin/products",
         {
           method: "GET",
 
@@ -536,8 +536,8 @@ function AdminProducts() {
           );
 
         const url = isEditing
-          ? `https://shopease-vnpn.onrender.com/api/admin/products/${editingProduct._id}`
-          : "https://shopease-vnpn.onrender.com/api/admin/products";
+          ? `https:///api/admin/products/${editingProduct._id}`
+          : "https:///api/admin/products";
 
         const method = isEditing
           ? "PUT"
@@ -684,7 +684,7 @@ function AdminProducts() {
 
       const response =
         await fetch(
-          `https://shopease-vnpn.onrender.com/api/admin/products/${productId}`,
+          `https:///api/admin/products/${productId}`,
           {
             method:
               "DELETE",

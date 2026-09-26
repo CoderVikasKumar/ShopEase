@@ -69,7 +69,7 @@ function ProductDetails() {
         setError("");
 
         const response = await fetch(
-          `https://shopease-vnpn.onrender.com/api/products/${id}`
+          `https:///api/products/${id}`
         );
 
         const data = await response.json();

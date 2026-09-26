@@ -350,7 +350,7 @@ function Checkout() {
 
       const response =
         await fetch(
-          "https://shopease-vnpn.onrender.com/api/orders",
+          "https:///api/orders",
           {
             method: "POST",
 
@@ -488,7 +488,7 @@ function Checkout() {
 
         const createResponse =
           await fetch(
-            "https://shopease-vnpn.onrender.com/api/orders/payment/create",
+            "https:///api/orders/payment/create",
             {
               method: "POST",
 
@@ -681,7 +681,7 @@ function Checkout() {
 
                 const verifyResponse =
                   await fetch(
-                    "https://shopease-vnpn.onrender.com/api/orders/payment/verify",
+                    "https:///api/orders/payment/verify",
                     {
                       method:
                         "POST",

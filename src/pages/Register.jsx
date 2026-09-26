@@ -105,7 +105,7 @@ function Register() {
       setLoading(true);
 
       const response = await fetch(
-        "https://shopease-vnpn.onrender.com/api/auth/register",
+        "https:///api/auth/register",
         {
           method: "POST",
 
