@@ -1,594 +1,832 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
+const API_URL =
+  "https://shopease-backend-txtm.onrender.com";
 
 function AdminDashboard() {
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [users, setUsers] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // =========================
-  // LOAD ORDERS
-  // =========================
+  const loadDashboard = async () => {
+    const token = localStorage.getItem("shopease_token");
 
-  useEffect(() => {
-    const loadDashboard = async () => {
-      const token =
-        localStorage.getItem(
-          "shopease_token"
-        );
+    if (!token) {
+      navigate("/login");
+      return;
+    }
 
-      if (!token) {
+    try {
+      setLoading(true);
+      setError("");
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const [ordersResponse, productsResponse, usersResponse] =
+        await Promise.all([
+          fetch(`${API_URL}/api/admin/orders`, {
+            method: "GET",
+            headers,
+          }),
+
+          fetch(`${API_URL}/api/products`, {
+            method: "GET",
+          }),
+
+          fetch(`${API_URL}/api/admin/users`, {
+            method: "GET",
+            headers,
+          }),
+        ]);
+
+      const ordersData = await ordersResponse.json();
+      const productsData = await productsResponse.json();
+      const usersData = await usersResponse.json();
+
+      if (ordersResponse.status === 401) {
+        localStorage.removeItem("shopease_token");
+        localStorage.removeItem("shopease_current_user");
         navigate("/login");
         return;
       }
 
-      try {
-        const response =
-          await fetch(
-            "https://shopease-backend-txtm.onrender.com/api/admin/orders",
-            {
-              method: "GET",
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
-            }
-          );
-
-        const data =
-          await response.json();
-
-        if (response.status === 401) {
-          localStorage.removeItem(
-            "shopease_token"
-          );
-
-          localStorage.removeItem(
-            "shopease_current_user"
-          );
-
-          navigate("/login");
-          return;
-        }
-
-        if (response.status === 403) {
-          setError(
-            "Admin access required."
-          );
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(
-            data.message ||
-              "Unable to load dashboard."
-          );
-        }
-
-        setOrders(
-          Array.isArray(data.orders)
-            ? data.orders
-            : []
-        );
-      } catch (err) {
-        console.error(
-          "Dashboard error:",
-          err
-        );
-
-        setError(
-          err.message ||
-            "Unable to load dashboard."
-        );
-      } finally {
-        setLoading(false);
+      if (ordersResponse.status === 403) {
+        setError("Admin access required.");
+        return;
       }
-    };
 
+      if (!ordersResponse.ok) {
+        throw new Error(
+          ordersData.message || "Unable to load orders."
+        );
+      }
+
+      setOrders(
+        Array.isArray(ordersData.orders)
+          ? ordersData.orders
+          : []
+      );
+
+      setProducts(
+        Array.isArray(productsData)
+          ? productsData
+          : Array.isArray(productsData.products)
+          ? productsData.products
+          : []
+      );
+
+      setUsers(
+        Array.isArray(usersData.users)
+          ? usersData.users
+          : []
+      );
+    } catch (err) {
+      console.error("Admin dashboard error:", err);
+
+      setError(
+        err.message || "Unable to load dashboard."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadDashboard();
-  }, [navigate]);
-
-  // =========================
-  // STATS
-  // =========================
+  }, []);
 
   const stats = useMemo(() => {
-    const totalOrders =
-      orders.length;
+    const totalOrders = orders.length;
 
-    const pendingOrders =
-      orders.filter(
+    const processingOrders = orders.filter((order) =>
+      ["Processing", "Packed"].includes(
+        order.orderStatus
+      )
+    ).length;
+
+    const deliveredOrders = orders.filter(
+      (order) =>
+        order.orderStatus === "Delivered"
+    ).length;
+
+    const cancelledOrders = orders.filter(
+      (order) =>
+        order.orderStatus === "Cancelled"
+    ).length;
+
+    const totalSales = orders
+      .filter(
         (order) =>
-          order.orderStatus ===
-            "Processing" ||
-          order.orderStatus ===
-            "Packed"
-      ).length;
+          order.orderStatus !== "Cancelled"
+      )
+      .reduce(
+        (sum, order) =>
+          sum + Number(order.total || 0),
+        0
+      );
 
-    const shipmentOrders =
-      orders.filter((order) =>
-        [
-          "Shipped",
-          "In Transit",
-          "Out for Delivery",
-        ].includes(
-          order.orderStatus
-        )
-      ).length;
+    const today = new Date();
 
-    const deliveredOrders =
-      orders.filter(
-        (order) =>
-          order.orderStatus ===
-          "Delivered"
-      ).length;
+    const todaysSales = orders
+      .filter((order) => {
+        if (order.orderStatus === "Cancelled") {
+          return false;
+        }
 
-    const revenue =
-      orders
-        .filter(
-          (order) =>
-            order.orderStatus !==
-            "Cancelled"
-        )
-        .reduce(
-          (sum, order) =>
-            sum +
-            Number(
-              order.total || 0
-            ),
-          0
+        const date = new Date(order.createdAt);
+
+        return (
+          date.getDate() === today.getDate() &&
+          date.getMonth() === today.getMonth() &&
+          date.getFullYear() === today.getFullYear()
         );
+      })
+      .reduce(
+        (sum, order) =>
+          sum + Number(order.total || 0),
+        0
+      );
+
+    const lowStockProducts = products.filter(
+      (product) =>
+        Number(product.stock || 0) <= 5
+    );
+
+    const outOfStock = products.filter(
+      (product) =>
+        Number(product.stock || 0) <= 0
+    ).length;
 
     return {
       totalOrders,
-      pendingOrders,
-      shipmentOrders,
+      processingOrders,
       deliveredOrders,
-      revenue,
+      cancelledOrders,
+      totalSales,
+      todaysSales,
+      lowStockProducts,
+      outOfStock,
     };
-  }, [orders]);
-
-  // =========================
-  // LOADING
-  // =========================
+  }, [orders, products]);
 
   if (loading) {
     return (
-      <main className="admin-dashboard-page">
-        <section className="admin-dashboard-header">
-          <p>ADMIN PANEL</p>
-
-          <h1>
-            Dashboard
-          </h1>
-
-          <span>
-            Loading dashboard...
-          </span>
-        </section>
-
-        <div className="admin-loading">
-          <i className="bi bi-arrow-repeat"></i>
-
-          <h2>
-            Loading Dashboard
-          </h2>
-
-          <p>
-            Please wait...
-          </p>
+      <main className="shopEase-admin-page">
+        <div className="shopEase-admin-loading">
+          <div className="shopEase-admin-spinner"></div>
+          <h2>Loading Dashboard</h2>
+          <p>Please wait...</p>
         </div>
       </main>
     );
   }
 
-  // =========================
-  // ERROR
-  // =========================
-
   if (error) {
     return (
-      <main className="admin-dashboard-page">
-        <section className="admin-dashboard-header">
-          <p>ADMIN PANEL</p>
+      <main className="shopEase-admin-page">
+        <div className="shopEase-admin-error-page">
+          <div className="shopEase-admin-error-icon">
+            <i className="bi bi-exclamation-triangle"></i>
+          </div>
 
-          <h1>
-            Dashboard
-          </h1>
+          <h2>Dashboard Unavailable</h2>
 
-          <span>
-            Manage your ShopEase store.
-          </span>
-        </section>
+          <p>{error}</p>
 
-        <div className="admin-error">
-          <i className="bi bi-exclamation-circle"></i>
-
-          <span>
-            {error}
-          </span>
+          <button
+            type="button"
+            onClick={loadDashboard}
+          >
+            <i className="bi bi-arrow-repeat"></i>
+            Retry
+          </button>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="admin-dashboard-page">
+    <main className="shopEase-admin-page">
 
-      {/* =========================
-          HEADER
-      ========================= */}
+      {/* SIDEBAR */}
 
-      <section className="admin-dashboard-header">
+      <aside className="shopEase-admin-sidebar">
 
-        <div>
+        <div className="shopEase-admin-brand">
 
-          <p>
-            ADMIN PANEL
-          </p>
+          <div className="shopEase-admin-brand-logo">
+            <i className="bi bi-bag-fill"></i>
+          </div>
 
-          <h1>
-            Dashboard
-          </h1>
+          <div>
+            <strong>
+              Shop<span>Ease</span>
+            </strong>
 
-          <span>
-            Monitor your ShopEase store
-            from one place.
-          </span>
+            <small>ADMIN CONTROL</small>
+          </div>
 
         </div>
 
-        <Link
-          to="/admin/orders"
-          className="admin-dashboard-orders-btn"
-        >
-          <i className="bi bi-box-seam"></i>
+        <div className="shopEase-admin-menu-title">
+          MENU
+        </div>
 
-          Manage Orders
-        </Link>
+        <nav className="shopEase-admin-nav">
 
-      </section>
+          <Link
+            to="/admin"
+            className="active"
+          >
+            <i className="bi bi-grid-1x2-fill"></i>
+            <span>Dashboard</span>
+          </Link>
 
-
-      {/* =========================
-          STATS
-      ========================= */}
-
-      <section className="admin-dashboard-stats">
-
-        {/* TOTAL ORDERS */}
-
-        <div className="admin-dashboard-stat">
-
-          <div className="admin-dashboard-stat-icon">
+          <Link to="/admin/orders">
             <i className="bi bi-box-seam"></i>
+            <span>Orders</span>
+
+            {orders.length > 0 && (
+              <b>{orders.length}</b>
+            )}
+          </Link>
+
+          <Link to="/admin/products">
+            <i className="bi bi-boxes"></i>
+            <span>Products</span>
+          </Link>
+
+          <Link to="/admin/users">
+            <i className="bi bi-people"></i>
+            <span>Customers</span>
+          </Link>
+
+          <Link to="/admin/products">
+            <i className="bi bi-boxes"></i>
+            <span>Inventory</span>
+
+            {stats.lowStockProducts.length > 0 && (
+              <b className="warning">
+                {stats.lowStockProducts.length}
+              </b>
+            )}
+          </Link>
+
+          <Link to="/admin/orders">
+            <i className="bi bi-credit-card"></i>
+            <span>Payments</span>
+          </Link>
+
+          <div className="shopEase-admin-menu-title second">
+            STORE
           </div>
 
-          <div>
-            <span>
-              Total Orders
-            </span>
+          <Link to="/admin/orders">
+            <i className="bi bi-bar-chart"></i>
+            <span>Analytics</span>
+          </Link>
 
-            <strong>
-              {stats.totalOrders}
-            </strong>
-          </div>
+          <Link to="/profile">
+            <i className="bi bi-gear"></i>
+            <span>Settings</span>
+          </Link>
 
-        </div>
+        </nav>
 
+        <div className="shopEase-admin-sidebar-bottom">
 
-        {/* PENDING */}
+          <div className="shopEase-admin-help-box">
+            <i className="bi bi-headset"></i>
 
-        <div className="admin-dashboard-stat">
-
-          <div className="admin-dashboard-stat-icon">
-            <i className="bi bi-clock-history"></i>
-          </div>
-
-          <div>
-            <span>
-              Pending Orders
-            </span>
-
-            <strong>
-              {stats.pendingOrders}
-            </strong>
-          </div>
-
-        </div>
-
-
-        {/* SHIPMENT */}
-
-        <div className="admin-dashboard-stat">
-
-          <div className="admin-dashboard-stat-icon">
-            <i className="bi bi-truck"></i>
-          </div>
-
-          <div>
-            <span>
-              In Shipment
-            </span>
-
-            <strong>
-              {stats.shipmentOrders}
-            </strong>
-          </div>
-
-        </div>
-
-
-        {/* DELIVERED */}
-
-        <div className="admin-dashboard-stat">
-
-          <div className="admin-dashboard-stat-icon">
-            <i className="bi bi-check-circle"></i>
-          </div>
-
-          <div>
-            <span>
-              Delivered
-            </span>
-
-            <strong>
-              {stats.deliveredOrders}
-            </strong>
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* =========================
-          REVENUE
-      ========================= */}
-
-      <section className="admin-dashboard-revenue">
-
-        <div>
-
-          <p>
-            TOTAL REVENUE
-          </p>
-
-          <h2>
-            $
-            {stats.revenue.toFixed(2)}
-          </h2>
-
-          <span>
-            Based on non-cancelled orders
-          </span>
-
-        </div>
-
-        <div className="admin-dashboard-revenue-icon">
-          <i className="bi bi-currency-dollar"></i>
-        </div>
-
-      </section>
-
-
-      {/* =========================
-          RECENT ORDERS
-      ========================= */}
-
-      <section className="admin-dashboard-recent">
-
-        <div className="admin-dashboard-section-head">
-
-          <div>
-
-            <p>
-              RECENT ACTIVITY
-            </p>
-
-            <h2>
-              Recent Orders
-            </h2>
-
+            <div>
+              <strong>Need Help?</strong>
+              <span>Admin support</span>
+            </div>
           </div>
 
           <Link
-            to="/admin/orders"
+            to="/"
+            className="shopEase-admin-logout"
           >
-            View All
-            <i className="bi bi-arrow-right"></i>
+            <i className="bi bi-box-arrow-left"></i>
+            Logout / Store
           </Link>
 
         </div>
 
+      </aside>
 
-        {orders.length === 0 ? (
 
-          <div className="admin-empty">
+      {/* MAIN CONTENT */}
 
-            <i className="bi bi-box-seam"></i>
+      <section className="shopEase-admin-content">
 
-            <h2>
-              No Orders Yet
-            </h2>
+        {/* TOPBAR */}
 
-            <p>
-              No customer orders are
-              available.
-            </p>
+        <header className="shopEase-admin-topbar">
+
+          <div className="shopEase-admin-mobile-brand">
+            <strong>
+              Shop<span>Ease</span>
+            </strong>
+
+            <small>Admin</small>
+          </div>
+
+          <div className="shopEase-admin-search">
+            <i className="bi bi-search"></i>
+
+            <input
+              type="text"
+              placeholder="Search orders, products, customers..."
+            />
+          </div>
+
+          <div className="shopEase-admin-top-actions">
+
+            <button
+              type="button"
+              onClick={loadDashboard}
+              title="Refresh dashboard"
+            >
+              <i className="bi bi-arrow-repeat"></i>
+            </button>
+
+            <button
+              type="button"
+              title="Notifications"
+              className="notification"
+            >
+              <i className="bi bi-bell"></i>
+
+              {orders.length > 0 && (
+                <span>{orders.length}</span>
+              )}
+            </button>
+
+            <div className="shopEase-admin-profile">
+
+              <div className="shopEase-admin-avatar">
+                A
+              </div>
+
+              <div>
+                <strong>Admin</strong>
+                <span>ShopEase</span>
+              </div>
+
+              <i className="bi bi-chevron-down"></i>
+
+            </div>
 
           </div>
 
-        ) : (
+        </header>
 
-          <div className="admin-dashboard-order-list">
 
-            {orders
-              .slice(0, 5)
-              .map((order) => (
+        {/* HEADING */}
+
+        <div className="shopEase-admin-heading">
+
+          <div>
+            <span>OVERVIEW</span>
+
+            <h1>Dashboard</h1>
+
+            <p>
+              Welcome back. Here's what's happening
+              with your ShopEase store today.
+            </p>
+          </div>
+
+          <div className="shopEase-admin-heading-actions">
+
+            <button
+              type="button"
+              onClick={loadDashboard}
+            >
+              <i className="bi bi-arrow-repeat"></i>
+              Refresh
+            </button>
+
+            <Link to="/admin/products">
+              <i className="bi bi-plus-lg"></i>
+              Add Product
+            </Link>
+
+          </div>
+
+        </div>
+
+
+        {/* KPI CARDS */}
+
+        <section className="shopEase-admin-kpi-grid">
+
+          <div className="shopEase-admin-kpi purple">
+
+            <div className="kpi-top">
+              <span>Today's Sales</span>
+              <i className="bi bi-bag-check"></i>
+            </div>
+
+            <strong>
+              ₹{stats.todaysSales.toFixed(2)}
+            </strong>
+
+            <small>
+              <i className="bi bi-arrow-up"></i>
+              Live order activity
+            </small>
+
+            <div className="kpi-decoration"></div>
+
+          </div>
+
+
+          <div className="shopEase-admin-kpi green">
+
+            <div className="kpi-top">
+              <span>Total Sales</span>
+              <i className="bi bi-graph-up-arrow"></i>
+            </div>
+
+            <strong>
+              ₹{stats.totalSales.toFixed(2)}
+            </strong>
+
+            <small>
+              <i className="bi bi-arrow-up"></i>
+              Non-cancelled orders
+            </small>
+
+            <div className="kpi-decoration"></div>
+
+          </div>
+
+
+          <div className="shopEase-admin-kpi orange">
+
+            <div className="kpi-top">
+              <span>Total Orders</span>
+              <i className="bi bi-box-seam"></i>
+            </div>
+
+            <strong>
+              {stats.totalOrders}
+            </strong>
+
+            <small>
+              <i className="bi bi-clock"></i>
+              {stats.processingOrders} processing
+            </small>
+
+            <div className="kpi-decoration"></div>
+
+          </div>
+
+
+          <div className="shopEase-admin-kpi blue">
+
+            <div className="kpi-top">
+              <span>Total Products</span>
+              <i className="bi bi-boxes"></i>
+            </div>
+
+            <strong>
+              {products.length}
+            </strong>
+
+            <small>
+              <i className="bi bi-check-circle"></i>
+              Active products
+            </small>
+
+            <div className="kpi-decoration"></div>
+
+          </div>
+
+
+          <div className="shopEase-admin-kpi pink">
+
+            <div className="kpi-top">
+              <span>Total Customers</span>
+              <i className="bi bi-people-fill"></i>
+            </div>
+
+            <strong>
+              {users.length}
+            </strong>
+
+            <small>
+              <i className="bi bi-person-plus"></i>
+              Registered users
+            </small>
+
+            <div className="kpi-decoration"></div>
+
+          </div>
+
+
+          <div className="shopEase-admin-kpi teal">
+
+            <div className="kpi-top">
+              <span>Low Stock Alerts</span>
+              <i className="bi bi-exclamation-diamond"></i>
+            </div>
+
+            <strong>
+              {stats.lowStockProducts.length}
+            </strong>
+
+            <small>
+              <i className="bi bi-box"></i>
+              {stats.outOfStock} out of stock
+            </small>
+
+            <div className="kpi-decoration"></div>
+
+          </div>
+
+        </section>
+
+
+        {/* ANALYTICS */}
+
+        <section className="shopEase-admin-analytics-grid">
+
+          <div className="shopEase-admin-card sales-card">
+
+            <div className="shopEase-admin-card-header">
+
+              <div>
+                <span>SALES OVERVIEW</span>
+                <h2>Store Overview</h2>
+              </div>
+
+              <span className="admin-card-label">
+                Current Data
+              </span>
+
+            </div>
+
+            <div className="admin-sales-summary">
+
+              <div>
+                <i className="bi bi-currency-rupee"></i>
+
+                <span>Total Sales</span>
+
+                <strong>
+                  ₹{stats.totalSales.toFixed(2)}
+                </strong>
+              </div>
+
+              <div>
+                <i className="bi bi-cart-check"></i>
+
+                <span>Orders</span>
+
+                <strong>
+                  {stats.totalOrders}
+                </strong>
+              </div>
+
+              <div>
+                <i className="bi bi-check2-circle"></i>
+
+                <span>Delivered</span>
+
+                <strong>
+                  {stats.deliveredOrders}
+                </strong>
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* LOW STOCK */}
+
+          <div className="shopEase-admin-card low-stock-card">
+
+            <div className="shopEase-admin-card-header">
+
+              <div>
+                <span>ATTENTION REQUIRED</span>
+                <h2>Low Stock Alert</h2>
+              </div>
+
+              <i className="bi bi-exclamation-triangle"></i>
+
+            </div>
+
+            <div className="low-stock-table">
+
+              {stats.lowStockProducts
+                .slice(0, 6)
+                .map((product) => (
+
+                  <div key={product._id}>
+
+                    <span>
+                      {product.name}
+                    </span>
+
+                    <span>
+                      {product.category || "Product"}
+                    </span>
+
+                    <strong
+                      className={
+                        Number(product.stock || 0) <= 0
+                          ? "critical"
+                          : ""
+                      }
+                    >
+                      {Number(product.stock || 0)} left
+                    </strong>
+
+                  </div>
+
+                ))}
+
+              {stats.lowStockProducts.length === 0 && (
+                <div className="empty-box">
+                  All products are well stocked.
+                </div>
+              )}
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* RECENT TRANSACTIONS + CUSTOMERS */}
+
+        <section className="shopEase-admin-bottom-grid">
+
+          <div className="shopEase-admin-card">
+
+            <div className="shopEase-admin-card-header">
+
+              <div>
+                <span>RECENT ACTIVITY</span>
+                <h2>Recent Transactions</h2>
+              </div>
+
+              <Link to="/admin/orders">
+                View All
+              </Link>
+
+            </div>
+
+            <div className="transactions-list">
+
+              {orders.slice(0, 6).map((order) => (
 
                 <div
-                  className="admin-dashboard-order"
+                  className="transaction-item"
                   key={order.orderId}
                 >
 
-                  <div className="admin-dashboard-order-icon">
-                    <i className="bi bi-box"></i>
+                  <div className="transaction-icon">
+
+                    <i
+                      className={
+                        order.paymentStatus === "paid"
+                          ? "bi bi-check-lg"
+                          : "bi bi-clock"
+                      }
+                    ></i>
+
                   </div>
 
-                  <div className="admin-dashboard-order-main">
-
+                  <div>
                     <strong>
                       {order.orderId}
                     </strong>
 
                     <span>
                       {order.user?.name ||
-                        `${order.customer?.firstName || ""} ${order.customer?.lastName || ""}`.trim() ||
+                        `${order.customer?.firstName || ""} ${
+                          order.customer?.lastName || ""
+                        }`.trim() ||
                         "Customer"}
                     </span>
-
                   </div>
 
+                  <div>
+                    <strong>
+                      ₹{Number(
+                        order.total || 0
+                      ).toFixed(2)}
+                    </strong>
 
-                  <div className="admin-dashboard-order-status">
+                    <span>
+                      {order.paymentMethod || "Online"}
+                    </span>
+                  </div>
 
-                    <span
-                      className={`order-status ${
-                        String(
-                          order.orderStatus ||
-                            "Processing"
-                        )
-                          .toLowerCase()
-                          .replaceAll(
-                            " ",
-                            "-"
-                          )
-                      }`}
-                    >
-                      {order.orderStatus ||
-                        "Processing"}
+                  <div>
+
+                    <span className="transaction-status">
+                      {order.orderStatus || "Processing"}
                     </span>
 
+                    <small>
+                      {order.createdAt
+                        ? new Date(
+                            order.createdAt
+                          ).toLocaleDateString("en-IN")
+                        : ""}
+                    </small>
+
                   </div>
-
-
-                  <strong className="admin-dashboard-order-total">
-                    $
-                    {Number(
-                      order.total || 0
-                    ).toFixed(2)}
-                  </strong>
-
-
-                  <Link
-                    to={`/track-order/${order.orderId}`}
-                    className="admin-dashboard-order-arrow"
-                  >
-                    <i className="bi bi-arrow-right"></i>
-                  </Link>
 
                 </div>
 
               ))}
 
-          </div>
+              {orders.length === 0 && (
+                <div className="empty-box">
+                  No transactions available.
+                </div>
+              )}
 
-        )}
-
-      </section>
-
-
-      {/* =========================
-          QUICK ACTIONS
-      ========================= */}
-
-      <section className="admin-dashboard-quick">
-
-        <div className="admin-dashboard-section-head">
-
-          <div>
-
-            <p>
-              QUICK ACTIONS
-            </p>
-
-            <h2>
-              Manage Store
-            </h2>
+            </div>
 
           </div>
 
-        </div>
 
+          {/* CUSTOMERS */}
 
-        <div className="admin-dashboard-quick-grid">
+          <div className="shopEase-admin-card">
 
-          <Link
-            to="/admin/orders"
-            className="admin-quick-card"
-          >
-            <i className="bi bi-box-seam"></i>
+            <div className="shopEase-admin-card-header">
 
-            <div>
-              <strong>
-                Manage Orders
-              </strong>
+              <div>
+                <span>CUSTOMERS</span>
+                <h2>Recent Customers</h2>
+              </div>
 
-              <span>
-                View and update orders
-              </span>
+              <Link to="/admin/users">
+                View All
+              </Link>
+
             </div>
 
-            <i className="bi bi-arrow-right"></i>
-          </Link>
+            <div className="customers-list">
 
+              {users.slice(0, 6).map((user) => (
 
-          <Link
-            to="/products"
-            className="admin-quick-card"
-          >
-            <i className="bi bi-grid"></i>
+                <div
+                  className="customer-item"
+                  key={user._id || user.id}
+                >
 
-            <div>
-              <strong>
-                View Products
-              </strong>
+                  <div className="customer-avatar">
+                    {(user.name || "C")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
 
-              <span>
-                Browse your products
-              </span>
+                  <div>
+                    <strong>
+                      {user.name || "Customer"}
+                    </strong>
+
+                    <span>
+                      {user.email || ""}
+                    </span>
+                  </div>
+
+                </div>
+
+              ))}
+
+              {users.length === 0 && (
+                <div className="empty-box">
+                  No customers available.
+                </div>
+              )}
+
             </div>
 
-            <i className="bi bi-arrow-right"></i>
-          </Link>
+          </div>
 
-
-          <Link
-            to="/profile"
-            className="admin-quick-card"
-          >
-            <i className="bi bi-person"></i>
-
-            <div>
-              <strong>
-                My Profile
-              </strong>
-
-              <span>
-                Manage admin account
-              </span>
-            </div>
-
-            <i className="bi bi-arrow-right"></i>
-          </Link>
-
-        </div>
+        </section>
 
       </section>
 
