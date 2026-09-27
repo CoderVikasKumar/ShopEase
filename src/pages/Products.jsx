@@ -69,7 +69,7 @@ function Products() {
         setError("");
 
         const response = await fetch(
-          "https:///api/products"
+          "https://shopease-backend-txtm.onrender.com/api/products"
         );
 
         const data =

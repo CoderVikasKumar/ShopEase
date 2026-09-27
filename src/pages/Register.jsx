@@ -105,7 +105,7 @@ function Register() {
       setLoading(true);
 
       const response = await fetch(
-        "https:///api/auth/register",
+        "https://shopease-backend-txtm.onrender.com/api/auth/register",
         {
           method: "POST",
 

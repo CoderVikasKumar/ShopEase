@@ -78,7 +78,7 @@ function ProductCard({ product }) {
 
         const response =
           await fetch(
-            "https:///api/products"
+            "https://shopease-backend-txtm.onrender.com/api/products"
           );
 
         const data =

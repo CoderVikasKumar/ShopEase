@@ -350,7 +350,7 @@ function OrderTracking() {
 
         const response =
           await fetch(
-            `https:///api/orders/${encodeURIComponent(
+            `https://shopease-backend-txtm.onrender.com/api/orders/${encodeURIComponent(
               orderId
             )}`,
             {
@@ -513,7 +513,7 @@ function OrderTracking() {
 
         const response =
           await fetch(
-            `https:///api/orders/${encodeURIComponent(
+            `https://shopease-backend-txtm.onrender.com/api/orders/${encodeURIComponent(
               order.orderId
             )}/cancel`,
             {

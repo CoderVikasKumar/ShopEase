@@ -30,7 +30,7 @@ function AdminDashboard() {
       try {
         const response =
           await fetch(
-            "https:///api/admin/orders",
+            "https://shopease-backend-txtm.onrender.com/api/admin/orders",
             {
               method: "GET",
               headers: {

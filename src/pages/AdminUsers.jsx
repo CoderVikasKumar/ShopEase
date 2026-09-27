@@ -55,7 +55,7 @@ function AdminUsers() {
 
       const response =
         await fetch(
-          "https:///api/admin/users",
+          "https://shopease-backend-txtm.onrender.com/api/admin/users",
           {
             method: "GET",
             headers: {
@@ -241,7 +241,7 @@ function AdminUsers() {
 
       const response =
         await fetch(
-          `https:///api/admin/users/${userId}/role`,
+          `https://shopease-backend-txtm.onrender.com/api/admin/users/${userId}/role`,
           {
             method: "PUT",
 
