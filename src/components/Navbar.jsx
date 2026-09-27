@@ -1,7 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 
 import {
   Link,
@@ -13,32 +10,45 @@ import { useCart } from "../context/CartContext";
 import { useWishlist } from "../context/WishlistContext";
 
 function Navbar() {
-  const [menuOpen, setMenuOpen] =
-    useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const [currentUser, setCurrentUser] =
-    useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const [authChecking, setAuthChecking] =
-    useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
 
   const { cartCount } = useCart();
-  const { wishlistCount } =
-    useWishlist();
+  const { wishlistCount } = useWishlist();
 
-  // =========================
-  // LOAD + VERIFY USER
-  // =========================
-
+  // ==========================================
+  // LOAD USER
+  // ==========================================
   const loadUser = async () => {
-    const token =
-      localStorage.getItem(
-        "shopease_token"
-      );
+    const token = localStorage.getItem("shopease_token");
 
+    // First load saved user immediately
+    const savedUser = localStorage.getItem(
+      "shopease_current_user"
+    );
+
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+
+        if (parsedUser) {
+          setCurrentUser(parsedUser);
+        }
+      } catch (error) {
+        console.error(
+          "Saved user parse error:",
+          error
+        );
+      }
+    }
+
+    // No token = logged out
     if (!token) {
       setCurrentUser(null);
       setAuthChecking(false);
@@ -46,84 +56,98 @@ function Navbar() {
     }
 
     try {
-      const response =
-        await fetch(
-          "https://shopease-backend-txtm.onrender.com/api/auth/me",
-          {
-            method: "GET",
+      const response = await fetch(
+        "https://shopease-backend-txtm.onrender.com/api/auth/me",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
-
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.message ||
-            "Session expired."
+          data.message || "Session expired."
         );
       }
 
-      const user = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        phone: data.user.phone || "",
-        city: data.user.city || "",
-      };
+      // ==========================================
+      // USER FROM BACKEND
+      // ==========================================
+      if (data.user) {
+        const user = {
+          id: data.user.id,
+          name: data.user.name || "",
+          email: data.user.email || "",
+          phone: data.user.phone || "",
+          city: data.user.city || "",
+        };
 
-      setCurrentUser(user);
+        setCurrentUser(user);
 
-      localStorage.setItem(
-        "shopease_current_user",
-        JSON.stringify(user)
-      );
+        localStorage.setItem(
+          "shopease_current_user",
+          JSON.stringify(user)
+        );
+      }
     } catch (error) {
       console.error(
-        "Navbar auth error:",
+        "Navbar auth verification error:",
         error
       );
 
-      localStorage.removeItem(
-        "shopease_token"
-      );
+      /*
+        IMPORTANT:
+        Agar /api/auth/me temporary fail hota hai,
+        to saved user ko immediately delete nahi karenge.
 
-      localStorage.removeItem(
-        "shopease_current_user"
-      );
+        Isse login ke baad Navbar me profile
+        visible rahega.
+      */
 
-      localStorage.removeItem(
-        "shopease_remember_me"
-      );
+      const savedUserAgain =
+        localStorage.getItem(
+          "shopease_current_user"
+        );
 
-      setCurrentUser(null);
+      if (savedUserAgain) {
+        try {
+          const parsedUser =
+            JSON.parse(savedUserAgain);
+
+          if (parsedUser) {
+            setCurrentUser(parsedUser);
+          }
+        } catch (parseError) {
+          console.error(
+            "User restore error:",
+            parseError
+          );
+        }
+      }
     } finally {
       setAuthChecking(false);
     }
   };
 
-  // =========================
+  // ==========================================
   // RUN AUTH CHECK
-  // =========================
-
+  // ==========================================
   useEffect(() => {
     loadUser();
   }, [location.pathname]);
 
-  // =========================
+  // ==========================================
   // STORAGE EVENT
-  // =========================
-
+  // ==========================================
   useEffect(() => {
-    const handleStorageChange =
-      () => {
-        loadUser();
-      };
+    const handleStorageChange = () => {
+      loadUser();
+    };
 
     window.addEventListener(
       "storage",
@@ -138,29 +162,25 @@ function Navbar() {
     };
   }, []);
 
-  // =========================
+  // ==========================================
   // CLOSE MENU
-  // =========================
-
+  // ==========================================
   const closeMenu = () => {
     setMenuOpen(false);
   };
 
-  // =========================
+  // ==========================================
   // LOGOUT
-  // =========================
-
+  // ==========================================
   const handleLogout = () => {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to logout?"
-      );
+    const confirmed = window.confirm(
+      "Are you sure you want to logout?"
+    );
 
     if (!confirmed) {
       return;
     }
 
-    // Remove everything
     localStorage.removeItem(
       "shopease_token"
     );
@@ -173,28 +193,28 @@ function Navbar() {
       "shopease_remember_me"
     );
 
-    // Clear Navbar state immediately
     setCurrentUser(null);
 
     setMenuOpen(false);
 
-    // Go to login
     navigate("/login", {
       replace: true,
     });
   };
 
+  // ==========================================
+  // USER NAME
+  // ==========================================
   const userName =
     currentUser?.name || "Account";
 
   return (
     <div className="navbar-wrapper">
-
       <nav className="main-navbar">
 
-        {/* =========================
+        {/* =====================================
             LOGO
-        ========================= */}
+        ===================================== */}
 
         <Link
           to="/"
@@ -216,10 +236,9 @@ function Navbar() {
           </div>
         </Link>
 
-
-        {/* =========================
+        {/* =====================================
             DESKTOP MENU
-        ========================= */}
+        ===================================== */}
 
         <div className="nav-links">
 
@@ -257,10 +276,9 @@ function Navbar() {
 
         </div>
 
-
-        {/* =========================
+        {/* =====================================
             RIGHT SIDE
-        ========================= */}
+        ===================================== */}
 
         <div className="nav-actions">
 
@@ -273,7 +291,6 @@ function Navbar() {
           >
             <i className="bi bi-search"></i>
           </Link>
-
 
           {/* WISHLIST */}
 
@@ -295,7 +312,6 @@ function Navbar() {
             </span>
           </Link>
 
-
           {/* CART */}
 
           <Link
@@ -310,10 +326,9 @@ function Navbar() {
             </span>
           </Link>
 
-
-          {/* =========================
+          {/* ===================================
               ACCOUNT
-          ========================= */}
+          =================================== */}
 
           {!authChecking && (
             <>
@@ -337,7 +352,6 @@ function Navbar() {
                       {userName}
                     </span>
                   </Link>
-
 
                   {/* LOGOUT */}
 
@@ -369,7 +383,6 @@ function Navbar() {
                     </span>
                   </Link>
 
-
                   {/* REGISTER */}
 
                   <Link
@@ -384,10 +397,9 @@ function Navbar() {
             </>
           )}
 
-
-          {/* =========================
+          {/* ===================================
               MOBILE MENU BUTTON
-          ========================= */}
+          =================================== */}
 
           <button
             type="button"
@@ -411,10 +423,9 @@ function Navbar() {
 
         </div>
 
-
-        {/* =========================
+        {/* =====================================
             MOBILE MENU
-        ========================= */}
+        ===================================== */}
 
         {menuOpen && (
           <div className="mobile-nav-menu">
@@ -427,7 +438,6 @@ function Navbar() {
               <span>Home</span>
             </Link>
 
-
             <Link
               to="/products"
               onClick={closeMenu}
@@ -435,7 +445,6 @@ function Navbar() {
               <i className="bi bi-grid"></i>
               <span>Products</span>
             </Link>
-
 
             <Link
               to="/categories"
@@ -445,7 +454,6 @@ function Navbar() {
               <span>Categories</span>
             </Link>
 
-
             <Link
               to="/search"
               onClick={closeMenu}
@@ -453,7 +461,6 @@ function Navbar() {
               <i className="bi bi-search"></i>
               <span>Search</span>
             </Link>
-
 
             <Link
               to="/wishlist"
@@ -472,7 +479,6 @@ function Navbar() {
               </span>
             </Link>
 
-
             <Link
               to="/cart"
               onClick={closeMenu}
@@ -484,6 +490,7 @@ function Navbar() {
               </span>
             </Link>
 
+            {/* MOBILE ACCOUNT */}
 
             {!authChecking && (
               <>
@@ -500,7 +507,6 @@ function Navbar() {
                       </span>
                     </Link>
 
-
                     <Link
                       to="/orders"
                       onClick={closeMenu}
@@ -512,13 +518,10 @@ function Navbar() {
                       </span>
                     </Link>
 
-
                     <button
                       type="button"
                       className="mobile-logout-btn"
-                      onClick={
-                        handleLogout
-                      }
+                      onClick={handleLogout}
                     >
                       <i className="bi bi-box-arrow-right"></i>
 
@@ -539,7 +542,6 @@ function Navbar() {
                         Login
                       </span>
                     </Link>
-
 
                     <Link
                       to="/register"
