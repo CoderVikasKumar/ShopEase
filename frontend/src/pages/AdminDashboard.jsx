@@ -23,15 +23,22 @@ function AdminDashboard() {
   const [error, setError] =
     useState("");
 
+  const [selectedOrder, setSelectedOrder] =
+    useState(null);
+
+  const [selectedStatus, setSelectedStatus] =
+    useState("Processing");
+
+  const [updatingStatus, setUpdatingStatus] =
+    useState(false);
+
   // =========================================================
   // LOAD DASHBOARD
+  // Uses the existing ShopEase production APIs.
   // =========================================================
 
   const loadDashboard = async () => {
-    const token =
-      localStorage.getItem(
-        "shopease_token"
-      );
+    const token = localStorage.getItem("shopease_token");
 
     if (!token) {
       navigate("/login");
@@ -41,78 +48,90 @@ function AdminDashboard() {
     try {
       setLoading(true);
       setError("");
+      const headers = { Authorization: `Bearer ${token}` };
 
-      const response =
-        await fetch(
-          "https://shopease-backend-txtm.onrender.com/api/admin/dashboard",
-          {
-            method: "GET",
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
+      const [ordersResponse, productsResponse, usersResponse] = await Promise.all([
+        fetch("https://shopease-backend-txtm.onrender.com/api/admin/orders", { method: "GET", headers }),
+        fetch("https://shopease-backend-txtm.onrender.com/api/products", { method: "GET", headers }),
+        fetch("https://shopease-backend-txtm.onrender.com/api/admin/users", { method: "GET", headers }),
+      ]);
 
-      const data =
-        await response.json();
+      const [ordersData, productsData, usersData] = await Promise.all([
+        ordersResponse.json(), productsResponse.json(), usersResponse.json(),
+      ]);
 
-      if (
-        response.status === 401
-      ) {
-        localStorage.removeItem(
-          "shopease_token"
-        );
-
-        localStorage.removeItem(
-          "shopease_current_user"
-        );
-
-        localStorage.removeItem(
-          "shopease_remember_me"
-        );
-
+      if ([ordersResponse, productsResponse, usersResponse].some((r) => r.status === 401)) {
+        localStorage.removeItem("shopease_token");
+        localStorage.removeItem("shopease_current_user");
+        localStorage.removeItem("shopease_remember_me");
         navigate("/login");
         return;
       }
+      if (ordersResponse.status === 403 || usersResponse.status === 403) throw new Error("Admin access required.");
+      if (!ordersResponse.ok) throw new Error(ordersData.message || "Unable to load orders.");
+      if (!productsResponse.ok) throw new Error(productsData.message || "Unable to load products.");
+      if (!usersResponse.ok) throw new Error(usersData.message || "Unable to load customers.");
 
-      if (
-        response.status === 403
-      ) {
-        throw new Error(
-          "Admin access required."
-        );
-      }
+      const orders = Array.isArray(ordersData?.orders) ? ordersData.orders : Array.isArray(ordersData?.data?.orders) ? ordersData.data.orders : [];
+      const products = Array.isArray(productsData?.products) ? productsData.products : Array.isArray(productsData?.data?.products) ? productsData.data.products : Array.isArray(productsData?.data) ? productsData.data : [];
+      const users = Array.isArray(usersData?.users) ? usersData.users : Array.isArray(usersData?.data?.users) ? usersData.data.users : Array.isArray(usersData?.data) ? usersData.data : [];
 
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Unable to load dashboard."
-        );
-      }
+      const nonCancelledOrders = orders.filter((order) => String(order?.orderStatus || "").toLowerCase() !== "cancelled");
+      const totalSales = nonCancelledOrders.reduce((sum, order) => sum + Number(order?.total || 0), 0);
+      const processingOrders = orders.filter((order) => ["Processing", "Packed"].includes(order?.orderStatus)).length;
+      const deliveredOrders = orders.filter((order) => order?.orderStatus === "Delivered").length;
+      const cancelledOrders = orders.filter((order) => order?.orderStatus === "Cancelled").length;
+      const pendingPayments = orders.filter((order) => String(order?.paymentStatus || "pending").toLowerCase() !== "paid").length;
+      const lowStockProducts = products.filter((product) => Number(product?.stock ?? product?.quantity ?? 0) <= 5);
+      const outOfStock = products.filter((product) => Number(product?.stock ?? product?.quantity ?? 0) <= 0).length;
+      const recentOrders = [...orders].sort((a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0));
+      const newOrders = recentOrders.filter((order) => ["Processing", "Packed"].includes(order?.orderStatus));
 
-      if (
-        data.success &&
-        data.dashboard
-      ) {
-        setDashboard(
-          data.dashboard
-        );
-      } else {
-        throw new Error(
-          "Invalid dashboard response."
-        );
-      }
+      const orderStatusSummary = orders.reduce((summary, order) => {
+        const status = order?.orderStatus || "Processing";
+        summary[status] = (summary[status] || 0) + 1;
+        return summary;
+      }, {});
+
+      const monthlyMap = {};
+      orders.forEach((order) => {
+        if (String(order?.orderStatus || "").toLowerCase() === "cancelled") return;
+        const date = new Date(order?.createdAt || 0);
+        if (Number.isNaN(date.getTime())) return;
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const key = `${year}-${month}`;
+        monthlyMap[key] = monthlyMap[key] || { _id: { year, month }, sales: 0 };
+        monthlyMap[key].sales += Number(order?.total || 0);
+      });
+      const monthlySales = Object.values(monthlyMap).sort((a, b) => Number(a._id.year) - Number(b._id.year) || Number(a._id.month) - Number(b._id.month));
+
+      const productSales = {};
+      orders.forEach((order) => {
+        if (String(order?.orderStatus || "").toLowerCase() === "cancelled") return;
+        (Array.isArray(order?.items) ? order.items : []).forEach((item) => {
+          const key = item?._id || item?.productId || item?.product || item?.name;
+          if (!key) return;
+          if (!productSales[key]) productSales[key] = { _id: key, name: item?.name || "Product", image: item?.image || "", quantity: 0, revenue: 0 };
+          const quantity = Number(item?.quantity || 0);
+          productSales[key].quantity += quantity;
+          productSales[key].revenue += Number(item?.price || 0) * quantity;
+        });
+      });
+      const topProducts = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+
+      const recentCustomers = [...users].sort((a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0)).slice(0, 10).map((user) => ({
+        ...user,
+        name: user?.name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Customer",
+      }));
+
+      setDashboard({
+        stats: { totalOrders: orders.length, totalProducts: products.length, totalCustomers: users.length, totalSales, processingOrders, deliveredOrders, cancelledOrders, pendingPayments, lowStockCount: lowStockProducts.length, outOfStock },
+        recentOrders, newOrders, lowStockProducts, recentCustomers, monthlySales, topProducts, orderStatusSummary,
+      });
     } catch (err) {
-      console.error(
-        "Admin dashboard error:",
-        err
-      );
-
-      setError(
-        err.message ||
-          "Unable to load dashboard."
-      );
+      console.error("Admin dashboard error:", err);
+      setError(err.message || "Unable to load dashboard.");
     } finally {
       setLoading(false);
     }
@@ -447,6 +466,90 @@ function AdminDashboard() {
 
       return "Other";
     };
+
+  // =========================================================
+  // ORDER MANAGEMENT
+  // =========================================================
+
+  const openOrderDrawer = (order) => {
+    setSelectedOrder(order);
+    setSelectedStatus(order?.orderStatus || "Processing");
+    setError("");
+  };
+
+  const closeOrderDrawer = () => {
+    if (!updatingStatus) {
+      setSelectedOrder(null);
+    }
+  };
+
+  const handleStatusUpdate = async () => {
+    if (!selectedOrder || !selectedStatus) return;
+
+    const token = localStorage.getItem("shopease_token");
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    if (selectedStatus === selectedOrder.orderStatus) return;
+
+    try {
+      setUpdatingStatus(true);
+      setError("");
+
+      const response = await fetch(
+        `https://shopease-backend-txtm.onrender.com/api/admin/orders/${encodeURIComponent(
+          selectedOrder.orderId
+        )}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: selectedStatus }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.status === 401) {
+        localStorage.removeItem("shopease_token");
+        localStorage.removeItem("shopease_current_user");
+        localStorage.removeItem("shopease_remember_me");
+        navigate("/login");
+        return;
+      }
+
+      if (response.status === 403) {
+        throw new Error("Admin access required.");
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Unable to update order status."
+        );
+      }
+
+      if (data.order) {
+        setSelectedOrder(data.order);
+        setSelectedStatus(
+          data.order.orderStatus || selectedStatus
+        );
+      }
+
+      await loadDashboard();
+    } catch (err) {
+      console.error("Order status update error:", err);
+      setError(
+        err.message || "Unable to update order status."
+      );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   // =========================================================
   // LOADING
@@ -1884,12 +1987,15 @@ function AdminDashboard() {
                           View
                         </Link>
 
-                        <Link
-                          to="/admin/orders"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openOrderDrawer(order)
+                          }
                         >
                           <i className="bi bi-pencil-square"></i>
                           Manage
-                        </Link>
+                        </button>
 
                       </div>
 
@@ -1905,6 +2011,272 @@ function AdminDashboard() {
         </section>
 
       </section>
+
+      {selectedOrder && (
+        <div
+          className="shopEase-admin-drawer-overlay"
+          onMouseDown={closeOrderDrawer}
+          role="presentation"
+        >
+          <aside
+            className="shopEase-admin-order-drawer"
+            onMouseDown={(event) => event.stopPropagation()}
+            aria-label="Order management"
+          >
+            <div className="order-drawer-header">
+              <div>
+                <span>ORDER MANAGEMENT</span>
+                <h2>{selectedOrder.orderId}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeOrderDrawer}
+                aria-label="Close"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <div className="order-drawer-scroll">
+              <section className="drawer-section">
+                <div className="drawer-section-title">
+                  <i className="bi bi-truck"></i>
+                  <span>Order Status</span>
+                </div>
+
+                <div className="drawer-status-box">
+                  <div>
+                    <span>CURRENT STATUS</span>
+                    <strong>
+                      {selectedOrder.orderStatus || "Processing"}
+                    </strong>
+                  </div>
+                  <span
+                    className={`order-status ${getStatusClass(
+                      selectedOrder.orderStatus
+                    )}`}
+                  >
+                    {selectedOrder.orderStatus || "Processing"}
+                  </span>
+                </div>
+
+                <div className="drawer-status-control">
+                  <label htmlFor="admin-order-status">
+                    Update Status
+                  </label>
+                  <select
+                    id="admin-order-status"
+                    value={selectedStatus}
+                    onChange={(event) =>
+                      setSelectedStatus(event.target.value)
+                    }
+                    disabled={updatingStatus}
+                  >
+                    <option value="Processing">Processing</option>
+                    <option value="Packed">Packed</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="In Transit">In Transit</option>
+                    <option value="Out for Delivery">Out for Delivery</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleStatusUpdate}
+                    disabled={
+                      updatingStatus ||
+                      selectedStatus === selectedOrder.orderStatus
+                    }
+                  >
+                    <i
+                      className={
+                        updatingStatus
+                          ? "bi bi-arrow-repeat"
+                          : "bi bi-check-lg"
+                      }
+                    ></i>
+                    {updatingStatus ? "Updating..." : "Update Status"}
+                  </button>
+                </div>
+              </section>
+
+              <section className="drawer-section">
+                <div className="drawer-section-title">
+                  <i className="bi bi-person"></i>
+                  <span>Customer</span>
+                </div>
+                <div className="drawer-info-card">
+                  <strong>{getCustomerName(selectedOrder)}</strong>
+                  <span>
+                    {selectedOrder.customer?.email ||
+                      selectedOrder.customerEmail ||
+                      "—"}
+                  </span>
+                  <span>
+                    {selectedOrder.customer?.phone ||
+                      selectedOrder.customerPhone ||
+                      "—"}
+                  </span>
+                </div>
+              </section>
+
+              <section className="drawer-section">
+                <div className="drawer-section-title">
+                  <i className="bi bi-geo-alt"></i>
+                  <span>Delivery Address</span>
+                </div>
+                <div className="drawer-info-card">
+                  <span>
+                    {selectedOrder.customer?.address || "—"}
+                  </span>
+                  <span>
+                    {[
+                      selectedOrder.customer?.city,
+                      selectedOrder.customer?.state,
+                      selectedOrder.customer?.pincode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "—"}
+                  </span>
+                </div>
+              </section>
+
+              <section className="drawer-section">
+                <div className="drawer-section-title">
+                  <i className="bi bi-box-seam"></i>
+                  <span>Order Items</span>
+                </div>
+                <div className="drawer-products">
+                  {Array.isArray(selectedOrder.items) &&
+                  selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item, index) => (
+                      <div
+                        className="drawer-product"
+                        key={`${selectedOrder.orderId}-${index}`}
+                      >
+                        <div className="drawer-product-image">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name || "Product"}
+                            />
+                          ) : (
+                            <i className="bi bi-box"></i>
+                          )}
+                        </div>
+                        <div>
+                          <strong>
+                            {item.name || "Product"}
+                          </strong>
+                          <span>
+                            Qty: {Number(item.quantity || 0)}
+                          </span>
+                        </div>
+                        <strong>
+                          ₹{formatMoney(
+                            Number(item.price || 0) *
+                              Number(item.quantity || 0)
+                          )}
+                        </strong>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty-box">
+                      Order item details are not available.
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="drawer-section">
+                <div className="drawer-section-title">
+                  <i className="bi bi-credit-card"></i>
+                  <span>Payment</span>
+                </div>
+                <div className="drawer-payment-grid">
+                  <div>
+                    <span>Method</span>
+                    <strong>
+                      {getPaymentLabel(selectedOrder.paymentMethod)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Status</span>
+                    <strong>
+                      {selectedOrder.paymentStatus || "pending"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Total</span>
+                    <strong>₹{formatMoney(selectedOrder.total)}</strong>
+                  </div>
+                  <div>
+                    <span>Order Date</span>
+                    <strong>{formatDate(selectedOrder.createdAt)}</strong>
+                  </div>
+                </div>
+              </section>
+
+              <section className="drawer-section">
+                <div className="drawer-section-title">
+                  <i className="bi bi-truck"></i>
+                  <span>Shipping</span>
+                </div>
+                <div className="drawer-payment-grid">
+                  <div>
+                    <span>Courier</span>
+                    <strong>
+                      {selectedOrder.courier || "Delhivery"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Tracking</span>
+                    <strong>
+                      {selectedOrder.trackingNumber || "Pending"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Location</span>
+                    <strong>
+                      {selectedOrder.currentLocation || "—"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Expected Delivery</span>
+                    <strong>
+                      {selectedOrder.expectedDelivery || "—"}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+
+              {error && (
+                <div className="drawer-inline-error">
+                  <i className="bi bi-exclamation-circle"></i>
+                  <span>{error}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="order-drawer-actions">
+              <Link
+                to={`/track-order/${selectedOrder.orderId}`}
+                className="drawer-primary-btn"
+              >
+                <i className="bi bi-truck"></i>
+                View Tracking
+              </Link>
+              <Link
+                to="/admin/orders"
+                className="drawer-secondary-btn"
+              >
+                <i className="bi bi-box-seam"></i>
+                Manage All Orders
+              </Link>
+            </div>
+          </aside>
+        </div>
+      )}
 
     </main>
   );

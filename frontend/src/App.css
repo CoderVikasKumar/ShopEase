@@ -182,3 +182,76 @@
     border-right-color: var(--border);
   }
 }
+
+/* =========================================================
+   ADMIN BACK ROW
+   Full width row above sidebar + content
+========================================================= */
+
+.admin-back-row {
+  width: 100%;
+  height: 56px;
+
+  display: flex;
+  align-items: center;
+
+  margin: 0;
+  padding: 0;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  box-sizing: border-box;
+
+  position: relative;
+  z-index: 100;
+}
+
+/* BackButton ke andar wala wrapper */
+
+.admin-back-row .global-back-wrapper {
+  width: 100%;
+  height: 56px;
+
+  display: flex;
+  align-items: center;
+
+  margin: 0;
+  padding: 0 24px;
+
+  box-sizing: border-box;
+}
+
+/* Back button */
+
+.admin-back-row .global-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  margin: 0;
+  padding: 8px 12px;
+
+  border: none;
+  background: transparent;
+
+  cursor: pointer;
+
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Arrow */
+
+.admin-back-row .global-back-btn i {
+  font-size: 18px;
+}
+
+/* Hover */
+
+.admin-back-row .global-back-btn:hover {
+  opacity: 0.75;
+}
